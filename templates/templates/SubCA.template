@@ -1,0 +1,520 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  documentsubca:
+    Type: AWS::SSM::Document
+    Properties:
+      Content:
+        schemaVersion: '2.2'
+        description: Provisions Domain Joined SubCA for ADCS
+        parameters:
+          domainfqdn:
+            type: String
+            description: 'Fully Qualified Domain Name, example: lab.domain.com'
+            default: ''
+          domainnetbios:
+            type: String
+            description: 'ShortName / Netbios domain name, example: labx'
+            default: ''
+          domaincontrollers:
+            type: String
+            description: 1 or 2 Domain Controllers IP Addresses, comma delimited
+            default: 10.10.10.10 , 10.10.10.11
+          domaincredentials:
+            type: String
+            description: ARN of the SecretsManager Domain Credentials
+            default: ''
+          domaincnrca:
+            type: String
+            description: RootCA Common Name
+            default: rca
+          domaincnsubca:
+            type: String
+            description: SubCA Common Name
+            default: subca
+          domainiprca:
+            type: String
+            description: RootCA IP Address
+            default: rca
+          domainipsubca:
+            type: String
+            description: SubCA IP Address
+            default: subca
+        mainSteps:
+          - action: aws:runPowerShellScript
+            name: subCADomainJoin
+            inputs:
+              timeoutSeconds: '3600'
+              runCommand:
+                - "$adcsProperties = @{\r\n    'domain_fqdn' = '{{domainfqdn}}';\r\
+                  \n    'domain_netbios' = '{{domainnetbios}}';\r\n    'domain_dns_servers'\
+                  \ = '{{domaincontrollers}}';\r\n    'aws_secret_id' = '{{domaincredentials}}';\r\
+                  \n}\r\n\r\n$adcsDirectories = @{\r\n    'rootdir' = 'C:\\Windows';\r\
+                  \n    'adcsloggingdir' = 'C:\\adcs_scripts' ;\r\n    'currentlog'\
+                  \ = 'ADCS_SubCA_Deployment_DomainJoin.log' ;\r\n}\r\n\r\n## If the\
+                  \ DC Join Operations Transcript Log File exists, Exit Cleanly\r\n\
+                  if(test-path -path $($adcsDirectories.'adcsscripts' + '\\' + $adcsDirectories.'currentlog')){\r\
+                  \n    Exit 0\r\n}\r\n\r\n## Begin Transcripting the session to track\
+                  \ for error messages\r\nmkdir $($adcsDirectories.'adcsloggingdir')\r\
+                  \nStart-Transcript -Path $($adcsDirectories.'adcsloggingdir' + '\\\
+                  ' + $adcsDirectories.'currentlog') -append\r\nWrite-host $(get-date)\r\
+                  \n\r\nWrite-Host \"Importing AWS PowerShell\"\r\nImport-Module AWSPowerShell\r\
+                  \n\r\nWrite-Host 'Enumerating SecretsManager for Domain Credentials'\r\
+                  \n## Retrieve Base64 Encoded Domain Credentials from Secrets Manager\r\
+                  \n$sm_domainuser_b64 = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainUser).domainUser\r\
+                  \n$sm_domainpass_b64 = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainPwd).domainPwd\r\
+                  \n\r\nIf  ((-not ($sm_domainuser_b64.length -gt 0)) -OR (-not ($sm_domainpass_b64.length\
+                  \ -gt 0))) {\r\n    Write-Host 'Error Obtaining Domain Credentials\
+                  \ from Secrets Manager'\r\n    Exit 1000\r\n}\r\n\r\nWrite-Host\
+                  \ 'Converting Domain Credentials to Plain Text'\r\n## Convert to\
+                  \ Plain Text\r\n$sm_domainuser_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainuser_b64))\r\
+                  \n$sm_domainpass_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainpass_b64))\r\
+                  \n\r\nWrite-Host 'New Object [PSCredential]'\r\n## Establish Credential\
+                  \ Object\r\n$domain_user = \"$($adcsProperties.'domain_netbios')\\\
+                  $sm_domainuser_text\"\r\n$domain_pwd = $sm_domainpass_text | ConvertTo-SecureString\
+                  \ -asPlainText -Force\r\n$credential = New-Object System.Management.Automation.PSCredential($domain_user,$domain_pwd)\r\
+                  \n\r\nWrite-Host \"Setting up DNS Servers in Ethernet Adapter\"\r\
+                  \n## Set the DNS Servers as Specified in the Ethernet Adapter\r\n\
+                  $interface_index = $(Get-NetIPInterface -AddressFamily IPv4 | ?{$_.InterfaceAlias\
+                  \ -notlike '*pseudo*'} | select ifindex).ifindex\r\nSet-DnsClientServerAddress\
+                  \ -InterfaceIndex $interface_index -ServerAddresses (\"$($adcsProperties.'domain_dns_servers')\"\
+                  )\r\n\r\nWrite-Host 'Testing Domain Join Networking Prerequisites'\r\
+                  \n## Checking if DNS Port is Listening\r\nTry {\r\n    $dns_servers\
+                  \ = $($adcsProperties.'domain_dns_servers') -split \",\"\r\n   \
+                  \ foreach ($dns in $dns_servers) {\r\n        $dns_service_test\
+                  \ = test-netconnection $dns.trim() -port 53 -ErrorAction SilentlyContinue\r\
+                  \n        if (-not ($dns_service_test.TcpTestSucceeded -eq 'True')){\r\
+                  \n            throw \"DNS Server [$dns] cannot be reached on TCP\
+                  \ Port 53\" \r\n        }\r\n    }\r\n} catch {\r\n    $_.FullyQualifiedErrorId\r\
+                  \n    Exit 1001\r\n}\r\nWrite-Host 'DC(s) are reachable, and Listening\
+                  \ on TCP Port 53'\r\n\r\n## Checking DNS Resolution to DomainControllers\r\
+                  \nTry {\r\n    $dns_resolve = resolve-dnsname \"$($adcsProperties.'domain_fqdn')\"\
+                  \ -ErrorAction SilentlyContinue\r\n    $domain_ips = $dns_resolve.ipaddress\r\
+                  \n    if (-not ($domain_ips.length -gt 0)) {\r\n        get-dnsclientserveraddress\r\
+                  \n        throw \"Current DNS [see above] cannot resolve domain\
+                  \ fqdn $($adcsProperties.'domain_fqdn')\" \r\n    }\r\n} catch {\r\
+                  \n    $_.FullyQualifiedErrorId\r\n    Exit 1002\r\n}\r\nWrite-Host\
+                  \ 'DC(s) are reachable, and resolving the target domain moving forward\
+                  \ Domain Join'\r\n\r\n## Attempt Domain Join\r\ntry {\r\n      \
+                  \  Add-Computer –DomainName \"$($adcsProperties.'domain_fqdn')\"\
+                  \ -Credential $credential –force -ErrorAction Stop\r\n} catch {\r\
+                  \n    $_.Exception.Message\r\n    Exit 1003\r\n}\r\n\r\nWrite-Host\
+                  \ \"Invoking System Reboot\"\r\n## Invoking System Reboot \r\nShutdown\
+                  \ -f -t 5 -r\r\n\r\nWrite-Host 'Stopping Transcript and Exit Cleanly'\r\
+                  \nStop-Transcript\r\n\r\n## Exit Cleanly Since Domain Join is Successfull,\
+                  \ 3010 will trigger ssm to wait\r\nExit 3010"
+            nextStep: dnsOperations
+          - action: aws:runPowerShellScript
+            name: dnsOperations
+            inputs:
+              timeoutSeconds: '3600'
+              runCommand:
+                - "$adcsProperties = @{\r\n    'domain_fqdn' = '{{domainfqdn}}';\r\
+                  \n    'domain_netbios' = '{{domainnetbios}}';\r\n    'rootca_common_name'\
+                  \ = '{{domaincnrca}}';\r\n    'subca_common_name' = '{{domaincnsubca}}';\r\
+                  \n    'aws_secret_id' = '{{domaincredentials}}';\r\n}\r\n\r\n$adcsDirectories\
+                  \ = @{\r\n    'adcsrootdir' = 'D:\\adcs_data';\r\n    'adcsdatadir'\
+                  \ = 'certificate_exchange';\r\n    'adcsdbdir' = 'db';\r\n    'adcsiisdir'\
+                  \ = 'iis';\r\n    'adcslogsdir' = 'logs';\r\n    'adcsscripts' =\
+                  \ 'C:\\adcs_scripts';\r\n    'currentlog' = 'ADCS_SubCA_DNSOperations.log'\
+                  \ ;\r\n    'currentscript' = 'ADCS_SubCA_DNSOperations.ps1' ;\r\n\
+                  }\r\n\r\n## If the DNS Operations Transcript Log File exists, Exit\
+                  \ Cleanly\r\nif(test-path -path $($adcsDirectories.'adcsscripts'\
+                  \ + '\\' + $adcsDirectories.'currentlog')){\r\n    Exit 0\r\n}\r\
+                  \n\r\n## Continue to Setup DNS Operations Scheduled Task, and PowerShell\
+                  \ Script File\r\nWrite-Host \"Importing AWS PowerShell\"\r\nImport-Module\
+                  \ AWSPowerShell\r\n\r\nWrite-Host 'Enumerating SecretsManager for\
+                  \ Domain Credentials'\r\n## Retrieve Base64 Encoded Domain Credentials\
+                  \ from Secrets Manager\r\n$sm_domainuser_b64 = $($(get-secsecretvalue\
+                  \ -secretid \"$($adcsProperties.'aws_secret_id')\").secretstring\
+                  \ |convertfrom-json | select domainUser).domainUser\r\n$sm_domainpass_b64\
+                  \ = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainPwd).domainPwd\r\
+                  \n\r\nIf  ((-not ($sm_domainuser_b64.length -gt 0)) -OR (-not ($sm_domainpass_b64.length\
+                  \ -gt 0))) {\r\n    Write-Host 'Error Obtaining Domain Credentials\
+                  \ from Secrets Manager'\r\n    Exit 1000\r\n}\r\n\r\nWrite-Host\
+                  \ 'Converting Domain Credentials to Plain Text'\r\n## Convert to\
+                  \ Plain Text\r\n$sm_domainuser_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainuser_b64))\r\
+                  \n$sm_domainpass_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainpass_b64))\r\
+                  \n\r\nWrite-Host 'New Object [PSCredential]'\r\n## Establish Credential\
+                  \ Object\r\n$domain_user = \"$($adcsProperties.'domain_netbios')\\\
+                  $sm_domainuser_text\"\r\n$domain_pwd = $sm_domainpass_text | ConvertTo-SecureString\
+                  \ -asPlainText -Force\r\n\r\n## Cannot Remove Domain Credential\
+                  \ Secrets Just yet, need to run DSPublish Still\r\n#Remove-SecSecret\
+                  \ -secretid \"$($adcsProperties.'aws_secret_id')\" -DeleteWithNoRecovery\
+                  \ $true -force\r\n#$credential = New-Object System.Management.Automation.PSCredential($domain_user,$domain_pwd)\r\
+                  \n\r\nWrite-Host \"Setting up Scheduled Tasks to Run DNS Operations\"\
+                  \r\n### Scheduled Task to Auth as Domain Admin and Add DNS Records\
+                  \ for RootCA & SubCA\r\n$adcsScheduledTask_DNSOperations = @{\r\n\
+                  \    'taskName' = 'SubCA DNS Operations' ;\r\n    'taskDescription'\
+                  \ = \"Evaluate the A Records and CNAMEs and Add Them to DNS\" ;\r\
+                  \n    'taskRunLevel' = 'Highest' ;\r\n    'taskUser' = \"$domain_user\"\
+                  \ ;\r\n    'taskPwd' = \"$sm_domainpass_text\" ;\r\n    'taskScript'\
+                  \ = @'\r\n$adcsDirectories = @{\r\n    'adcsscripts' = 'C:\\adcs_scripts';\r\
+                  \n    'currentlog' = 'ADCS_SubCA_DNSOperations.log' ;\r\n    'currentscript'\
+                  \ = 'ADCS_SubCA_DNSOperations.ps1' ;\r\n}\r\n\r\n## Begin Transcripting\
+                  \ to track for error messages\r\nStart-Transcript -Path $($adcsDirectories.'adcsscripts'\
+                  \ + '\\' + $adcsDirectories.'currentlog') -append\r\nwrite-host\
+                  \ $(get-date)\r\nwrite-host \"Starting DNS Record Operations, Adding\
+                  \ A Record and CName for RootCA and SubCA\"\r\n\r\nWrite-Host \"\
+                  Installing DNS RSAT Roles for PowerShell Modules\"\r\n### Install\
+                  \ RSAT DNS, Add DNS Records to Domain for RootCA & SubCA\r\nInstall-windowsfeature\
+                  \ `\r\n    -Name RSAT-DNS-Server `\r\n    -confirm:$false\r\n\r\n\
+                  $adcsProperties = @{\r\n    'domain_fqdn' = '{{domainfqdn}}';\r\n\
+                  \    'domain_netbios' = '{{domainnetbios}}';\r\n    'rootca_common_name'\
+                  \ = '{{domaincnrca}}';\r\n    'subca_common_name' = '{{domaincnsubca}}';\r\
+                  \n}\r\n\r\nWrite-Host \"Configuring A Records and CNAMEs\"\r\n$dnsProperties\
+                  \ = @{\r\n    'rootca_ip'= '{{domainiprca}}';\r\n    'subca_ip'\
+                  \ = '{{domainipsubca}}';\r\n    'rootca_arecord' = $adcsProperties.'rootca_common_name'\
+                  \ + '-' + $adcsProperties.'domain_netbios' ; \r\n    'subca_arecord'\
+                  \ = $adcsProperties.'subca_common_name' + '-' + $adcsProperties.'domain_netbios'\
+                  \ ;\r\n    'rootca_arecord_fqdn' = $adcsProperties.'rootca_common_name'\
+                  \ + '-' + $adcsProperties.'domain_netbios' + '.' + $($adcsProperties.'domain_fqdn')\
+                  \ ;\r\n    'subca_arecord_fqdn' = $adcsProperties.'subca_common_name'\
+                  \ + '-' + $adcsProperties.'domain_netbios' + '.' + $($adcsProperties.'domain_fqdn')\
+                  \ ;\r\n}\r\n\r\nWrite-Host \"Adding A Record for SubCA\"\r\nAdd-DnsServerResourceRecordA\
+                  \ `\r\n    -Name \"$($dnsProperties.'subca_arecord')\" `\r\n   \
+                  \ -ZoneName \"$($adcsProperties.'domain_fqdn')\" `\r\n    -IPv4Address\
+                  \ \"$($dnsProperties.'subca_ip')\" `\r\n    -computername \"$($adcsProperties.'domain_fqdn')\"\
+                  \r\n\r\nWrite-Host \"Adding CNAME Record for SubCA\"\r\nAdd-DnsServerResourceRecordCName\
+                  \ `\r\n    -Name \"$($adcsProperties.'subca_common_name')\" `\r\n\
+                  \    -HostNameAlias \"$($dnsProperties.'subca_arecord_fqdn')\" `\r\
+                  \n    -ZoneName \"$($adcsProperties.'domain_fqdn')\" `\r\n    -computername\
+                  \ \"$($adcsProperties.'domain_fqdn')\"\r\n\r\nWrite-Host \"Adding\
+                  \ A Record for RootCA\"\r\nAdd-DnsServerResourceRecordA `\r\n  \
+                  \  -Name \"$($dnsProperties.'rootca_arecord')\" `\r\n    -ZoneName\
+                  \ \"$($adcsProperties.'domain_fqdn')\" `\r\n    -IPv4Address \"\
+                  $($dnsProperties.'rootca_ip')\" `\r\n    -computername \"$($adcsProperties.'domain_fqdn')\"\
+                  \r\n\r\nWrite-Host \"Adding CNAME Record for RootCA\"\r\nAdd-DnsServerResourceRecordCName\
+                  \ `\r\n    -Name \"$($adcsProperties.'rootca_common_name')\" `\r\
+                  \n    -HostNameAlias \"$($dnsProperties.'rootca_arecord_fqdn')\"\
+                  \ `\r\n    -ZoneName \"$($adcsProperties.'domain_fqdn')\" `\r\n\
+                  \    -computername \"$($adcsProperties.'domain_fqdn')\"\r\n\r\n\
+                  Write-Host \"Cleaning up DNS RSAT Roles\"\r\n### Remove RSAT-DNS\r\
+                  \nRemove-WindowsFeature `\r\n    -Name RSAT-DNS-Server `\r\n   \
+                  \ -confirm:$false\r\n\r\n$adcsScheduledTask_DNSOperations = @{\r\
+                  \n    'taskName' = 'SubCA DNS Operations' ;\r\n}\r\n\r\nWrite-Host\
+                  \ \"Cleaning Up Scheduled Task\"\r\n## Remove Scheduled Task DNS\
+                  \ Operations\r\nUnregister-ScheduledTask \"$($adcsScheduledTask_DNSOperations.'taskName')\"\
+                  \ -Confirm:$false\r\n\r\nWrite-host \"Stopping Transcript and invoking\
+                  \ System Reboot\"\r\n\r\nStop-Transcript\r\nremove-item \"$($adcsDirectories.'adcsscripts')\\\
+                  $($adcsDirectories.'currentscript')\" -force\r\n\r\nExit 0\r\n'@\r\
+                  \n}\r\n\r\n## Establish ADCS_Data Folder Layout, and Make Directories\r\
+                  \nmkdir \"$($adcsDirectories.'adcsscripts')\"\r\n$adcsScheduledTask_DNSOperations.'taskScript'\
+                  \ > \"$($adcsDirectories.'adcsscripts')\\$($adcsDirectories.'currentscript')\"\
+                  \r\n\r\n## Define Scheduled Task Actions\r\n$action = New-ScheduledTaskAction\
+                  \ -Execute 'Powershell.exe' -Argument $('-NoProfile -NoLogo -NonInteractive\
+                  \ -ExecutionPolicy Bypass -File \"' + \"$($adcsDirectories.'adcsscripts')\\\
+                  $($adcsDirectories.'currentscript')\" + '\"')\r\n\r\n## Define Scheduled\
+                  \ Task Trigger, and Repeat Interval (Polling)\r\n$trigger = New-ScheduledTaskTrigger\
+                  \ -Once -At 12am -RepetitionDuration  (New-TimeSpan -Days 100) \
+                  \ -RepetitionInterval  (New-TimeSpan -Minutes 60)\r\n\r\n## Register\
+                  \ New Scheduled Task\r\nRegister-ScheduledTask `\r\n    -Action\
+                  \ $action `\r\n    -Trigger $trigger `\r\n    -RunLevel $($adcsScheduledTask_DNSOperations.'taskRunLevel')\
+                  \ `\r\n    -TaskName $($adcsScheduledTask_DNSOperations.'taskName')\
+                  \ `\r\n    -Description $($adcsScheduledTask_DNSOperations.'taskDescription')\
+                  \ `\r\n    -User $($adcsScheduledTask_DNSOperations.'taskUser')\
+                  \ `\r\n    -Password $($adcsScheduledTask_DNSOperations.'taskPwd')\
+                  \ \r\n\r\n## Wait about 1 minute for the task to finish\r\n## Launching\
+                  \ Schedule Task, since DSPublish Operations do not have \"Credentials\"\
+                  \ argument\r\nStart-ScheduledTask -TaskName $($adcsScheduledTask_DNSOperations.'taskName')\r\
+                  \n\r\n$polling_retries = 0\r\ndo {\r\n    if(test-path -path \"\
+                  $($adcsDirectories.'adcsscripts')\\$($adcsDirectories.'currentscript')\"\
+                  ){\r\n        start-sleep -seconds 60\r\n    }else{\r\n        shutdown\
+                  \ -f -t 3 -r\r\n        exit 3010\r\n    }\r\n    $polling_retries++\r\
+                  \n} while($polling_retries -lt 10)\r\n\r\n## Tell SSM to Wait for\
+                  \ System Reboot before moving to the next Step\r\n\r\nExit 0\r\n"
+            nextStep: runADCS
+          - action: aws:runPowerShellScript
+            name: runADCS
+            inputs:
+              timeoutSeconds: '3600'
+              runCommand:
+                - "### SubCA\r\n$adcsProperties = @{\r\n    'domain_fqdn' = '{{domainfqdn}}';\r\
+                  \n    'domain_netbios' = '{{domainnetbios}}';\r\n    'rootca_common_name'\
+                  \ = '{{domaincnrca}}';\r\n    'subca_common_name' = '{{domaincnsubca}}';\r\
+                  \n    'aws_secret_id' = '{{domaincredentials}}';\r\n}\r\n\r\n$adcsDirectories\
+                  \ = @{\r\n    'adcsrootdir' = 'D:\\adcs_data';\r\n    'adcsdatadir'\
+                  \ = 'certificate_exchange';\r\n    'adcsdbdir' = 'db';\r\n    'adcsiisdir'\
+                  \ = 'iis';\r\n    'adcslogsdir' = 'logs';\r\n    'currentlog' =\
+                  \ 'ADCS_SubCA_Deployment.log' ;\r\n    'default_iis_dir' = 'C:\\\
+                  Windows\\system32\\CertSrv' ;\r\n}\r\n\r\n## Begin Transcripting\
+                  \ using \"Write-Host\" with SSM session to track for error messages\r\
+                  \nWrite-host $(get-date)\r\n\r\nWrite-host \"Formating EBS Data\
+                  \ Volume\"\r\n## Find and Initialize D\r\n$data_disk = get-disk|?{$_.\"\
+                  partitionstyle\" -like \"raw\"} \r\n$data_disk | Initialize-Disk\
+                  \ -PartitionStyle GPT\r\n## Add Partition & Quick Format\r\n$data_part\
+                  \ = $data_disk |New-Partition -DriveLetter D -UseMaximumSize\r\n\
+                  format-volume -driveletter D -newfilesystemlabel \"ADCS-Data\"\r\
+                  \n\r\n## Establish ADCS_Data Folder Layout, and Make Directories\r\
+                  \nmkdir \"$($adcsDirectories.'adcsrootdir')\"\r\nmkdir \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsdbdir')\"\r\nmkdir \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsiisdir')\"\r\nmkdir \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcslogsdir')\"\r\nmkdir \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsdatadir')\"\r\n\r\n## Establish\
+                  \ FQDN and DistringuishedNames for Root & Sub CAs\r\n$rootca_fqdn\
+                  \ = $adcsProperties.'rootca_common_name' + '.' + $adcsProperties.'domain_fqdn'\r\
+                  \n$subca_fqdn = $adcsProperties.'subca_common_name' + '.' + $adcsProperties.'domain_fqdn'\r\
+                  \n$subca_distinguished_name = \"DC=\" + $($subca_fqdn -replace \"\
+                  \\.\" , \",DC=\")\r\n\r\n$adcsFiles = @{\r\n    'rootca_der' = \"\
+                  $rootca_fqdn`-der.cer\"; \r\n    'rootca_cer'  = \"$rootca_fqdn`-p7b.p7b\"\
+                  ; \r\n    'rootca_b64'  = \"$rootca_fqdn`-b64.cer\"; \r\n    'rootca_crl'\
+                  \ = \"$rootca_fqdn.crl\"; \r\n    'subca_req' = \"$subca_fqdn`_CA-REQ.req\"\
+                  ;\r\n    'subca_cer' = \"$subca_fqdn`-b64.cer\" ;\r\n}\r\n\r\n$adcsFilePaths\
+                  \ = @{\r\n    'rootca_der' = $adcsDirectories.'adcsrootdir' + '\\\
+                  ' + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_der'\
+                  \ ;\r\n    'rootca_cer' = $adcsDirectories.'adcsrootdir' + '\\'\
+                  \ + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_cer'\
+                  \ ;\r\n    'rootca_b64' = $adcsDirectories.'adcsrootdir' + '\\'\
+                  \ + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_b64'\
+                  \ ;\r\n    'rootca_crl' = $adcsDirectories.'adcsrootdir' + '\\'\
+                  \ + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_crl'\
+                  \ ;\r\n    'subca_req' = $adcsDirectories.'adcsrootdir' + '\\' +\
+                  \ $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'subca_req'\
+                  \ ;\r\n    'subca_cer' = $adcsDirectories.'adcsrootdir' + '\\' +\
+                  \ $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'subca_cer'\
+                  \ ;\r\n}\r\n\r\n## Getting Credentials from SecretsManager, to Pass\
+                  \ into Install cmdlet\r\nWrite-Host \"Importing AWS PowerShell\"\
+                  \r\nImport-Module AWSPowerShell\r\n\r\nWrite-Host 'Enumerating SecretsManager\
+                  \ for Domain Credentials'\r\n## Retrieve Base64 Encoded Domain Credentials\
+                  \ from Secrets Manager\r\n$sm_domainuser_b64 = $($(get-secsecretvalue\
+                  \ -secretid \"$($adcsProperties.'aws_secret_id')\").secretstring\
+                  \ |convertfrom-json | select domainUser).domainUser\r\n$sm_domainpass_b64\
+                  \ = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainPwd).domainPwd\r\
+                  \n\r\nIf  ((-not ($sm_domainuser_b64.length -gt 0)) -OR (-not ($sm_domainpass_b64.length\
+                  \ -gt 0))) {\r\n    Write-Host 'Error Obtaining Domain Credentials\
+                  \ from Secrets Manager'\r\n    Exit 1000\r\n}\r\n\r\nWrite-Host\
+                  \ 'Converting Domain Credentials to Plain Text'\r\n## Convert to\
+                  \ Plain Text\r\n$sm_domainuser_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainuser_b64))\r\
+                  \n$sm_domainpass_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainpass_b64))\r\
+                  \n\r\nWrite-Host 'New Object [PSCredential]'\r\n## Establish Credential\
+                  \ Object\r\n$domain_user = \"$($adcsProperties.'domain_netbios')\\\
+                  $sm_domainuser_text\"\r\n$domain_pwd = $sm_domainpass_text | ConvertTo-SecureString\
+                  \ -asPlainText -Force\r\n$credential = New-Object System.Management.Automation.PSCredential($domain_user,$domain_pwd)\r\
+                  \n\r\nWrite-Host \"Adding Windows Feature ADCS-Cert-Authority\"\r\
+                  \n### Install and Configure ADCS SubCA\r\nAdd-WindowsFeature adcs-cert-authority,\
+                  \ windows-server-backup -includemanagementtools\r\n\r\n### Using\
+                  \ Credentials to Install ADCS will ensure the certificate templates\
+                  \ install from AD correctly\r\nWrite-Host \"Install ADCS-Cert-Authority\
+                  \ with Domain Credentials\"\r\nInstall-AdcsCertificationAuthority\
+                  \ `\r\n    -CAType EnterpriseSubordinateCa `\r\n    -CACommonName\
+                  \ \"$subca_fqdn\" `\r\n    -CADistinguishedNameSuffix \"$subca_distinguished_name\"\
+                  \ `\r\n    -DatabaseDirectory \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsdbdir')\" `\r\n    -LogDirectory\
+                  \ \"$($adcsDirectories.'adcsrootdir' + '\\' + $adcsDirectories.'adcslogsdir')\"\
+                  \ `\r\n    -CryptoProviderName 'RSA#Microsoft Software Key Storage\
+                  \ Provider' `\r\n    -KeyLength 4096 `\r\n    -HashAlgorithmName\
+                  \ SHA512 `\r\n    -OutputCertRequestFile \"$($adcsFilePaths.'subca_req')\"\
+                  \ `\r\n    -Credential $credential `\r\n    -Force\r\n\r\n#######\
+                  \ Convert SubCA Request File to Base64 Encoded String and Upload\
+                  \ to Parameter Store\r\n$adcsSubCAFileContent = @{\r\n    'subca_req'\
+                  \ = $([Convert]::ToBase64String([IO.File]::ReadAllBytes($adcsFilePaths.'subca_req')))\
+                  \ ; \r\n}\r\n\r\n$adcsSSM = @{\r\n    'root' = \"$subca_fqdn\" ;\r\
+                  \n    'subdir' = 'adcs-subca' ;\r\n    }\r\n\r\n## SubCA Write SubCA\
+                  \ Certificate Request to SSM Parameters\r\nWrite-Host \"Importing\
+                  \ AWS PowerShell\"\r\nImport-Module AWSPowerShell\r\nWrite-SSMParameter\
+                  \ -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir' + '/' + $adcsFiles.'subca_req')\"\
+                  \ -Value $($adcsSubCAFileContent.'subca_req') -Type \"SecureString\"\
+                  \r\n\r\n## While we wait on the RCA to Fulfill the SubCA Certificate\
+                  \ Request, Move to Configure ADCS Extensions\r\n\r\n### Add CDP\
+                  \ HTTP\r\nAdd-CACRLDistributionPoint `\r\n    -Uri \"http://$subca_fqdn/CertEnroll/<CaName><CRLNameSuffix><DeltaCRLAllowed>.crl\"\
+                  \ `\r\n    -AddToCertificateCdp `\r\n    -AddToFreshestCrl `\r\n\
+                  \    -force\r\n\r\n### Add CDP LocalDisk\r\nAdd-CACRLDistributionPoint\
+                  \ `\r\n    -Uri \"$($adcsDirectories.'adcsrootdir' + '\\' + $adcsDirectories.'adcsiisdir')\\\
+                  CertEnroll\\<CaName><CRLNameSuffix><DeltaCRLAllowed>.crl\" `\r\n\
+                  \    -PublishToServer -PublishDeltaToServer `\r\n    -force\r\n\r\
+                  \n### Add AIA LocalDisk\r\ncertutil -setreg CA\\CACertPublicationURLs\
+                  \ \"1:$($adcsDirectories.'adcsrootdir' + '\\' + $adcsDirectories.'adcsiisdir')\\\
+                  CertEnroll\\CertEnroll\\%1_%3%4.crt\"\r\n\r\n### Add AIA HTTP\r\n\
+                  Add-CAAuthorityInformationAccess  `\r\n    -Uri \"http://$subca_fqdn/CertEnroll/<ServerDNSName>_<CaName><CertificateName>.crt\"\
+                  \ `\r\n    -AddToCertificateAia `\r\n    -force\r\n\r\n###  CRL\
+                  \ Publication Intervals\r\ncertutil -setreg CA\\CRLPeriodUnits 1\r\
+                  \ncertutil -setreg CA\\CRLPeriod 'days'\r\n\r\ncertutil -setreg\
+                  \ CA\\CRLDeltaPeriodUnits 0\r\ncertutil -setreg CA\\CRLDeltaPeriod\
+                  \ 'days'\r\n\r\n## Add and Configure ADCS with Web Enrollment\r\n\
+                  Add-WindowsFeature Adcs-Web-Enrollment -IncludeManagementTools\r\
+                  \nInstall-AdcsWebEnrollment -Force\r\n\r\n## Copying All Files from\
+                  \ Default IIS Deployment to RootCA IIS Dir\r\nStop-Service certsvc\r\
+                  \ncopy-item \"$($adcsDirectories.'default_iis_dir')\\*\" \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsiisdir')\" -recurse -force\r\n\r\
+                  \n## Import the IIS PowerShell Module, then update the virtual IIS\
+                  \ directories for ADCS\r\nImport-Module WebAdministration\r\nSet-ItemProperty\
+                  \ 'IIS:\\Sites\\Default Web Site\\CertSrv' -Name physicalPath -Value\
+                  \ \"$($adcsDirectories.'adcsrootdir' + '\\' + $adcsDirectories.'adcsiisdir')\\\
+                  en-US\"\r\nSet-ItemProperty 'IIS:\\Sites\\Default Web Site\\CertEnroll'\
+                  \ -Name physicalPath -Value \"$($adcsDirectories.'adcsrootdir' +\
+                  \ '\\' + $adcsDirectories.'adcsiisdir')\\CertEnroll\"\r\n\r\n##\
+                  \ Poll SSM until RCA Parameters are found, Allow Steps Required\
+                  \ from RCA to Complete\r\n$polling_retries = 0\r\ndo {\r\n    ###\
+                  \ SubCA Acquire and WriteFiles\r\n    Import-Module AWSPowerShell\r\
+                  \n    Try {\r\n        $adcsSSMRootCAFiles = @{\r\n            'rootca_der'\
+                  \ = $($((Get-SSMParameterValue -Name \"/$($adcsSSM.'root' + '/'\
+                  \ + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_der')\" –WithDecryption\
+                  \ $true).Parameters).value) ;\r\n            'rootca_cer' = $($((Get-SSMParameterValue\
+                  \ -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_cer')\"\
+                  \ –WithDecryption $true).Parameters).value) ;\r\n            'rootca_b64'\
+                  \ = $($((Get-SSMParameterValue -Name \"/$($adcsSSM.'root' + '/'\
+                  \ + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_b64')\" –WithDecryption\
+                  \ $true).Parameters).value) ;\r\n            'rootca_crl' = $($((Get-SSMParameterValue\
+                  \ -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_crl')\"\
+                  \ –WithDecryption $true).Parameters).value) ;\r\n            'subca_cer'\
+                  \ = $($((Get-SSMParameterValue -Name \"/$($adcsSSM.'root' + '/'\
+                  \ + $adcsSSM.'subdir' + '/' + $adcsFiles.'subca_cer')\" –WithDecryption\
+                  \ $true).Parameters).value) ;\r\n        }\r\n\r\n    }\r\n    Catch\
+                  \ {}\r\n\r\n    ## If Either SSM Parameter does not exist yet, exit\
+                  \ powershell and wait 60 seconds\r\n    if ( (-not $($adcsSSMRootCAFiles.'subca_cer').length\
+                  \ -gt 0) -or (-not $($adcsSSMRootCAFiles.'rootca_crl').length -gt\
+                  \ 0) ) {\r\n        Start-Sleep -Seconds 60\r\n    }else{\r\n  \
+                  \      write-host \"Found RootCA Parameters after $polling_retries\
+                  \ Minutes\"\r\n        break;\r\n    }\r\n\r\n$polling_retries++\r\
+                  \n} while($polling_retries -lt 10)\r\n\r\n## If Either SSM Parameter\
+                  \ does not exist yet, exit powershell and hard fail\r\nif ( (-not\
+                  \ $($adcsSSMRootCAFiles.'subca_cer').length -gt 0) -or (-not $($adcsSSMRootCAFiles.'rootca_crl').length\
+                  \ -gt 0) ) {\r\n    Write-Host \"SSM Parameter Store does not contain\
+                  \ the RootCA Parameters after 10 minutes\"\r\n    Exit 2000\r\n\
+                  }\r\n\r\n## SubCA Write File Content\r\n[IO.File]::WriteAllBytes($adcsFilePaths.'rootca_der'\
+                  \ , [Convert]::FromBase64String($adcsSSMRootCAFiles.'rootca_der'))\r\
+                  \n[IO.File]::WriteAllBytes($adcsFilePaths.'rootca_cer' , [Convert]::FromBase64String($adcsSSMRootCAFiles.'rootca_cer'))\r\
+                  \n[IO.File]::WriteAllBytes($adcsFilePaths.'rootca_b64' , [Convert]::FromBase64String($adcsSSMRootCAFiles.'rootca_b64'))\r\
+                  \n[IO.File]::WriteAllBytes($adcsFilePaths.'rootca_crl' , [Convert]::FromBase64String($adcsSSMRootCAFiles.'rootca_crl'))\r\
+                  \n[IO.File]::WriteAllBytes($adcsFilePaths.'subca_cer' , [Convert]::FromBase64String($adcsSSMRootCAFiles.'subca_cer'))\r\
+                  \n\r\n## SubCA Cleanup SSM Parameter Store\r\nRemove-SSMParameter\
+                  \ -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_der')\"\
+                  \ -force\r\nRemove-SSMParameter -Name \"/$($adcsSSM.'root' + '/'\
+                  \ + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_cer')\" -force\r\
+                  \nRemove-SSMParameter -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir'\
+                  \ + '/' + $adcsFiles.'rootca_b64')\" -force\r\nRemove-SSMParameter\
+                  \ -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir' + '/' + $adcsFiles.'rootca_crl')\"\
+                  \ -force\r\nRemove-SSMParameter -Name \"/$($adcsSSM.'root' + '/'\
+                  \ + $adcsSSM.'subdir' + '/' + $adcsFiles.'subca_req')\" -force\r\
+                  \nRemove-SSMParameter -Name \"/$($adcsSSM.'root' + '/' + $adcsSSM.'subdir'\
+                  \ + '/' + $adcsFiles.'subca_cer')\" -force\r\n\r\n### Get RootCA\
+                  \ CRL File from LocalDisk, and Copy to SubCA DataDirectory\r\ncopy-item\
+                  \ \"$($adcsFilePaths.'rootca_crl')\" \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsiisdir')\\CertEnroll\"\r\ncopy-item\
+                  \ \"$($adcsFilePaths.'rootca_cer')\" \"$($adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsiisdir')\\CertEnroll\"\r\n\r\n\r\
+                  \n## From here DsOperations will Auth with Domain Admin and Finish\
+                  \ the SubCA Publishing\r\nStop-Transcript\r\n\r\nExit 0"
+            nextStep: dsPublishOperation
+          - action: aws:runPowerShellScript
+            name: dsPublishOperation
+            inputs:
+              timeoutSeconds: '3600'
+              runCommand:
+                - "$adcsProperties = @{\r\n    'domain_fqdn' = '{{domainfqdn}}';\r\
+                  \n    'domain_netbios' = '{{domainnetbios}}';\r\n    'rootca_common_name'\
+                  \ = '{{domaincnrca}}';\r\n    'subca_common_name' = '{{domaincnsubca}}';\r\
+                  \n    'aws_secret_id' = '{{domaincredentials}}';\r\n}\r\n\r\n$adcsDirectories\
+                  \ = @{\r\n    'adcsrootdir' = 'D:\\adcs_data';\r\n    'adcsdatadir'\
+                  \ = 'certificate_exchange';\r\n    'adcsdbdir' = 'db';\r\n    'adcsiisdir'\
+                  \ = 'iis';\r\n    'adcslogsdir' = 'logs';\r\n    'adcsscripts' =\
+                  \ 'C:\\adcs_scripts';\r\n    'currentlog' = 'ADCS_SubCA_DSPublish.log'\
+                  \ ;\r\n    'currentscript' = 'ADCS_SubCA_DSPublish.ps1' ;\r\n}\r\
+                  \n\r\nWrite-Host \"Importing AWS PowerShell\"\r\nImport-Module AWSPowerShell\r\
+                  \n\r\nWrite-Host 'Enumerating SecretsManager for Domain Credentials'\r\
+                  \n## Retrieve Base64 Encoded Domain Credentials from Secrets Manager\r\
+                  \n$sm_domainuser_b64 = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainUser).domainUser\r\
+                  \n$sm_domainpass_b64 = $($(get-secsecretvalue -secretid \"$($adcsProperties.'aws_secret_id')\"\
+                  ).secretstring |convertfrom-json | select domainPwd).domainPwd\r\
+                  \n\r\nIf  ((-not ($sm_domainuser_b64.length -gt 0)) -OR (-not ($sm_domainpass_b64.length\
+                  \ -gt 0))) {\r\n    Write-Host 'Error Obtaining Domain Credentials\
+                  \ from Secrets Manager'\r\n    Exit 1000\r\n}\r\n\r\nWrite-Host\
+                  \ 'Converting Domain Credentials to Plain Text'\r\n## Convert to\
+                  \ Plain Text\r\n$sm_domainuser_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainuser_b64))\r\
+                  \n$sm_domainpass_text = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($sm_domainpass_b64))\r\
+                  \n\r\nWrite-Host 'New Object [PSCredential]'\r\n## Establish Credential\
+                  \ Object\r\n$domain_user = \"$($adcsProperties.'domain_netbios')\\\
+                  $sm_domainuser_text\"\r\n\r\n## Removing Domain Credentials Secret,\
+                  \ Since DSPublish Operations are the last requirement\r\nRemove-SecSecret\
+                  \ -secretid \"$($adcsProperties.'aws_secret_id')\" -DeleteWithNoRecovery\
+                  \ $true -force\r\n\r\n### Scheduled Task to Auth as Domain Admin\
+                  \ and run DSPublish Operations\r\n### Adding RootCA Certificate\
+                  \ and CRL file to ADSI PublicKeyServices\r\n$adcsScheduledTask_DSPublishOperations\
+                  \ = @{\r\n    'taskName' = 'SubCA DSPublish Operations' ;\r\n  \
+                  \  'taskDescription' = 'Publish the RootCA Certificate and CRL to\
+                  \ ADSI PublicKeyServices' ;\r\n    'taskRunLevel' = 'Highest' ;\r\
+                  \n    'taskUser' = \"$domain_user\" ;\r\n    'taskPwd' = \"$sm_domainpass_text\"\
+                  \ ;\r\n    'taskScript' = @'\r\n$adcsProperties = @{\r\n    'domain_fqdn'\
+                  \ = '{{domainfqdn}}';\r\n    'domain_netbios' = '{{domainnetbios}}';\r\
+                  \n    'rootca_common_name' = '{{domaincnrca}}';\r\n    'subca_common_name'\
+                  \ = '{{domaincnsubca}}';\r\n}\r\n$adcsDirectories = @{\r\n    'adcsrootdir'\
+                  \ = 'D:\\adcs_data';\r\n    'adcsscripts' = 'C:\\adcs_scripts';\r\
+                  \n    'adcsdatadir' = 'certificate_exchange';\r\n    'currentlog'\
+                  \ = 'ADCS_SubCA_DSPublish.log' ;\r\n    'currentscript' = 'ADCS_SubCA_DSPublish.ps1'\
+                  \ ;\r\n}\r\n\r\n## Begin Transcripting to track for error messages\r\
+                  \nStart-Transcript -Path $($adcsDirectories.'adcsscripts' + '\\\
+                  ' + $adcsDirectories.'currentlog') -append\r\nwrite-host $(get-date)\r\
+                  \nwrite-host \"Starting DSPublish Operations, Adding RootCA Certificate\
+                  \ and CRL file to ADSI PublicKeyServices\"\r\n\r\n## Establish FQDN\
+                  \ and DistringuishedNames for Root & Sub CAs\r\n$rootca_fqdn = $adcsProperties.'rootca_common_name'\
+                  \ + '.' + $adcsProperties.'domain_fqdn'\r\n$subca_computer_name\
+                  \ = $env:computername\r\n$subca_fqdn = $adcsProperties.'subca_common_name'\
+                  \ + '.' + $adcsProperties.'domain_fqdn'\r\n\r\n$adcsFiles = @{\r\
+                  \n    'rootca_b64'  = \"$rootca_fqdn`-b64.cer\"; \r\n    'rootca_crl'\
+                  \ = \"$rootca_fqdn.crl\"; \r\n    'subca_cer' = \"$subca_fqdn`-b64.cer\"\
+                  \ ;\r\n}\r\n\r\n$adcsFilePaths = @{\r\n    'rootca_b64' = $adcsDirectories.'adcsrootdir'\
+                  \ + '\\' + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_b64'\
+                  \ ;\r\n    'rootca_crl' = $adcsDirectories.'adcsrootdir' + '\\'\
+                  \ + $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'rootca_crl'\
+                  \ ;\r\n    'subca_cer' = $adcsDirectories.'adcsrootdir' + '\\' +\
+                  \ $adcsDirectories.'adcsdatadir' + '\\' + $adcsFiles.'subca_cer'\
+                  \ ;\r\n}\r\n\r\n### Install the SubCA Certificate as Issued by the\
+                  \ RootCA, and Publish to ActiveDirectory PublicKeyServices\r\ncertutil\
+                  \ –addstore –f root \"$($adcsFilePaths.'rootca_b64')\"\r\ncertutil\
+                  \ -installCert \"$($adcsFilePaths.'subca_cer')\"\r\ncertutil –addstore\
+                  \ –f root \"$($adcsFilePaths.'rootca_crl')\"\r\ncertutil –dspublish\
+                  \ –f \"$($adcsFilePaths.'rootca_b64')\" RootCA\r\n\r\n## Establish\
+                  \ SPN (CNAME) in domain, used for SMB and Alike\r\nSETSPN -a host/$($adcsProperties.'subca_common_name')\
+                  \ $subca_computer_name\r\nSETSPN -a host/$subca_fqdn $subca_computer_name\r\
+                  \n\r\n## Finishing IIS SSL Binding Configuration\r\n## Import the\
+                  \ IIS PowerShell Module, then update the virtual IIS directories\
+                  \ for ADCS\r\nImport-Module WebAdministration\r\n\r\n## Get Certificate\
+                  \ Thumbprint(Hash) for IIS SSL Binding\r\n$subca_certificate_thumbprint\
+                  \ = $(get-childitem -path cert:\\localmachine\\my | ?{$_.subject\
+                  \ -like \"*$subca_fqdn*\"}).thumbprint\r\n$guid = [guid]::NewGuid().ToString('B')\r\
+                  \nnetsh http add sslcert hostnameport=\"${subca_fqdn}:443\" certhash=$subca_certificate_thumbprint\
+                  \ certstorename=MY appid=\"$guid\"\r\nNew-WebBinding -name 'Default\
+                  \ Web Site' -Protocol https  -HostHeader $subca_fqdn -Port 443 -SslFlags\
+                  \ 1\r\n\r\n## Disable IIS Directory Browsing\r\nC:\\Windows\\System32\\\
+                  inetsrv\\appcmd.exe set config /section:directoryBrowse /enabled:false\r\
+                  \n## Enable IIS Request Filtering\r\nC:\\Windows\\System32\\inetsrv\\\
+                  appcmd.exe set config 'Default Web Site' /section:system.webServer/Security/requestFiltering\
+                  \ -allowDoubleEscaping:True\r\n\r\n## Resetting IIS to Finalize\
+                  \ the Changes\r\niisreset\r\n\r\n$adcsScheduledTask_DSPublishOperations\
+                  \ = @{\r\n    'taskName' = 'SubCA DSPublish Operations' ;\r\n}\r\
+                  \n\r\n## Remove Scheduled Task DSPublish Operations\r\nUnregister-ScheduledTask\
+                  \ \"$($adcsScheduledTask_DSPublishOperations.'taskName')\" -Confirm:$false\r\
+                  \n\r\n## With All New Settings in Place, Start SubCA CertificateAuthority\
+                  \ Services\r\nStart-Service certsvc\r\n\r\nStop-Transcript\r\nremove-item\
+                  \ \"$($adcsDirectories.'adcsscripts')\\$($adcsDirectories.'currentscript')\"\
+                  \ -force\r\n\r\nExit 0\r\n'@\r\n}\r\n## Establish ADCS_Data Folder\
+                  \ Layout, and Make Directories\r\nmkdir \"$($adcsDirectories.'adcsscripts')\"\
+                  \r\n$adcsScheduledTask_DSPublishOperations.'taskScript' > \"$($adcsDirectories.'adcsscripts')\\\
+                  $($adcsDirectories.'currentscript')\"\r\n\r\n## Define Scheduled\
+                  \ Task Actions\r\n$action = New-ScheduledTaskAction -Execute 'Powershell.exe'\
+                  \ -Argument $('-NoProfile -NoLogo -NonInteractive -ExecutionPolicy\
+                  \ Bypass -File \"' + \"$($adcsDirectories.'adcsscripts')\\$($adcsDirectories.'currentscript')\"\
+                  \ + '\"')\r\n\r\n## Define Scheduled Task Trigger, and Repeat Interval\
+                  \ (Polling)\r\n$trigger = New-ScheduledTaskTrigger -Once -At 12am\
+                  \ -RepetitionDuration  (New-TimeSpan -Days 100)  -RepetitionInterval\
+                  \  (New-TimeSpan -Minutes 100)\r\n\r\n## Register New Scheduled\
+                  \ Task\r\nRegister-ScheduledTask `\r\n    -Action $action `\r\n\
+                  \    -Trigger $trigger `\r\n    -RunLevel $($adcsScheduledTask_DSPublishOperations.'taskRunLevel')\
+                  \ `\r\n    -TaskName $($adcsScheduledTask_DSPublishOperations.'taskName')\
+                  \ `\r\n    -Description $($adcsScheduledTask_DSPublishOperations.'taskDescription')\
+                  \ `\r\n    -User $($adcsScheduledTask_DSPublishOperations.'taskUser')\
+                  \ `\r\n    -Password $($adcsScheduledTask_DSPublishOperations.'taskPwd')\
+                  \ \r\n\r\n## Launching Schedule Task, since DSPublish Operations\
+                  \ do not have \"Credentials\" argument\r\nStart-ScheduledTask -TaskName\
+                  \ $($adcsScheduledTask_DSPublishOperations.'taskName')\r\n\r\nExit\
+                  \ 0\r\n"
+            isEnd: true
+      DocumentType: Command
+Outputs:
+  docname:
+    Description: ssm document for subca
+    Value: !Ref 'documentsubca'
