@@ -3,7 +3,7 @@ Description: >-
   This template creates a Microsoft two-tier PKI infrastructure comprising an
   offline root CA and a subordinate issuing CA. **WARNING** This template creates
   Amazon EC2 Windows instance and related resources. You will be billed for the
-  AWS resources used if you create a stack from this template. (qp-1qkk6hela)
+  AWS resources used if you create a stack from this template. (qs-1qpclo7fi)
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
