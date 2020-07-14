@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ssmdocname:
+    Description: SSM Doc Deploy SubCA
+    Type: String
+    Default: ''
+  ec2targetsubca:
+    Description: SubCA EC2 Instance ID
+    Type: String
+    Default: ''
+  domainfqdn:
+    Description: 'Fully Qualified Domain Name, example: lab.domain.com'
+    Type: String
+    Default: ''
+  domainnetbios:
+    Description: 'ShortName / Netbios domain name, example: labx'
+    Type: String
+    Default: ''
+  domaincontrollers:
+    Description: 1 or 2 Domain Controllers IP Addresses, comma delimited
+    Type: String
+    Default: 10.10.10.10 , 10.10.10.11
+  domaincredentials:
+    Description: ARN of the SecretsManager Domain Credentials
+    Type: String
+    Default: ''
+  domaincnrca:
+    Description: RootCA Common Name
+    Type: String
+    Default: ''
+  domaincnsubca:
+    Description: SubCA Common Name
+    Type: String
+    Default: ''
+  domainiprca:
+    Description: RootCA IP Address
+    Type: String
+    Default: ''
+  domainipsubca:
+    Description: SubCA IP Address
+    Type: String
+    Default: ''
+Resources:
+  vpc0ssm0doc0run:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: SubCADeploy
+      DocumentVersion: $LATEST
+      Name: !Ref 'ssmdocname'
+      Parameters:
+        domainfqdn:
+          - !Ref 'domainfqdn'
+        domainnetbios:
+          - !Ref 'domainnetbios'
+        domaincontrollers:
+          - !Ref 'domaincontrollers'
+        domaincredentials:
+          - !Ref 'domaincredentials'
+        domaincnrca:
+          - !Ref 'domaincnrca'
+        domaincnsubca:
+          - !Ref 'domaincnsubca'
+        domainiprca:
+          - !Ref 'domainiprca'
+        domainipsubca:
+          - !Ref 'domainipsubca'
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Ref 'ec2targetsubca'

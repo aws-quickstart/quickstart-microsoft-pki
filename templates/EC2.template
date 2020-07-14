@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  name:
+    Description: EC2 Instance Name
+    Type: String
+    Default: ''
+  size:
+    Description: EC2 Instance Size
+    Type: String
+    Default: t3.small
+    AllowedValues:
+      - t3.small
+      - c5.large
+      - c5.xlarge
+  key:
+    Description: EC2 Instance PEM Key
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: ''
+  iam:
+    Description: IAM Role for EC2SSM
+    Type: String
+    Default: ''
+  public:
+    Description: Assign Public IP
+    Type: String
+    Default: 'False'
+    AllowedValues:
+      - 'True'
+      - 'False'
+  subnet:
+    Description: EC2 Launch Subnet
+    Type: AWS::EC2::Subnet::Id
+    Default: ''
+  sg:
+    Description: VPC 0 SG Mgmt0
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: ''
+  userdata:
+    Description: EC2 base64 encoded userdata
+    Type: String
+    Default: ''
+  2019LatestAmiId:
+    Description: 2019 Latest AMI
+    NoEcho: 'false'
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+Resources:
+  ec2:
+    Type: AWS::EC2::Instance
+    Properties:
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: '35'
+        - DeviceName: xvdb
+          Ebs:
+            VolumeSize: '5'
+      DisableApiTermination: false
+      IamInstanceProfile: !Ref 'iam'
+      ImageId: !Ref '2019LatestAmiId'
+      InstanceInitiatedShutdownBehavior: stop
+      InstanceType: !Ref 'size'
+      KeyName: !Ref 'key'
+      Monitoring: false
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: !Ref 'public'
+          DeleteOnTermination: true
+          Description: eni0
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref 'sg'
+          SubnetId: !Ref 'subnet'
+      SourceDestCheck: true
+      Tags:
+        - Key: Name
+          Value: !Ref 'name'
+      Tenancy: default
+      UserData: !Ref 'userdata'
+Outputs:
+  ip:
+    Description: ec2 ip address
+    Value: !GetAtt 'ec2.PrivateIp'
+  id:
+    Description: ec2 instance id
+    Value: !Ref 'ec2'

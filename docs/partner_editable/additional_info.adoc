@@ -1,0 +1,25 @@
+// Add steps as necessary for accessing the software, post-configuration, and testing. Don’t include full usage instructions for your software, but add links to your product documentation for that information.
+//Should any sections not be applicable, remove them
+
+== Test the deployment
+
+Using AWS Systems Manager – Session Manager, connect to the Subordinate CA EC2 and run the following powershell command:
+
+Powershell: > get-content C:\adcs_scripts\ADCS_Deployment_Results.txt
+
+Confirm the output includes the following: "CAIsValid: 1"
+
+== Best practices for using {partner-product-name} on AWS
+
+This quickstart migrates pertinent folders and files related to the certificate services to an additional EBS volume [ D:\ ]. It is recommended to back-up the PKI deployment including private key and current certificate database.
+
+== Security
+
+After this Quick Start deploys the Root CA server and generates the root certificate, the Root CA server is powered off, and is intended to remain offline until the Subordinate CA certificate needs to be renewed.
+
+Domain administrator credentials are stored in AWS Secrets Manager and consumed by the Subordinate CA for domain joining, installing certificate services and adding the required dns records. When these tasks are completed, the domain administrator credentials are removed from AWS Secrets Manager.
+
+== Other useful information
+
+{https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-server-certificate-template}[Configure the server certificate template]
+{https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-server-certificate-autoenrollment}[Configure certificate auto-enrollment]

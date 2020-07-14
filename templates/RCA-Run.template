@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ssmdocname:
+    Description: SSM Doc Deploy RootCA
+    Type: String
+    Default: ''
+  ec2targetrca:
+    Description: RootCA EC2 Instance ID
+    Type: String
+    Default: ''
+  domainfqdn:
+    Description: 'Fully Qualified Domain Name, example: lab.domain.com'
+    Type: String
+    Default: ''''''
+  domainnetbios:
+    Description: 'ShortName / Netbios domain name, example: labx'
+    Type: String
+    Default: ''''''
+  domaincnrca:
+    Description: RootCA Common Name
+    Type: String
+    Default: ''''''
+  domaincnsubca:
+    Description: SubCA Common Name
+    Type: String
+    Default: ''''''
+  rcavalidity:
+    Description: Number of Years for RootCA
+    Type: String
+    Default: ''''''
+  subcavalidity:
+    Description: Number of Years for Subordinate CA
+    Type: String
+    Default: ''''''
+Resources:
+  vpc0ssm0doc0run:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: RCADeploy
+      DocumentVersion: $LATEST
+      Name: !Ref 'ssmdocname'
+      Parameters:
+        domainfqdn:
+          - !Ref 'domainfqdn'
+        domainnetbios:
+          - !Ref 'domainnetbios'
+        domaincnrca:
+          - !Ref 'domaincnrca'
+        domaincnsubca:
+          - !Ref 'domaincnsubca'
+        rcavalidity:
+          - !Ref 'rcavalidity'
+        subcavalidity:
+          - !Ref 'subcavalidity'
+      Targets:
+        - Key: InstanceIds
+          Values:
+            - !Ref 'ec2targetrca'
