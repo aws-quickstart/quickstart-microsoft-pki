@@ -18,4 +18,15 @@ For additional information, see https://docs.aws.amazon.com/AWSCloudFormation/la
 
 == Troubleshooting
 
-<Steps for troubleshooting the deployment go here.>
+Throughout the deployment steps, various log files record progress and provide insight in to encountered error messages. The following log file locations can be used help troubleshoot deployment failures.
+
+Deployment Log File Locations
+
+* SubCA Log File Repository:
+** C:\adcs_scripts
+* SubCA SSM PowerShell LogFile Output:
+** C:\ProgramData\Amazon\SSM\InstanceData\<instanceId>\document\orchestration\<commandId>\..\..\stdoutConsole
+* RootCA SSM PowerShell LogFile
+** C:\ProgramData\Amazon\SSM\InstanceData\<instanceId>\document\orchestration\<commandId>\..\..\stdoutConsole
+
+{https://docs.aws.amazon.com/systems-manager/latest/userguide/troubleshooting-remote-commands.html}[Troubleshooting Systems Manager Run Command]
