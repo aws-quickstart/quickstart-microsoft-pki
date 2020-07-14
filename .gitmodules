@@ -10,3 +10,6 @@
 [submodule "submodules/quickstart-microsoft-utilities"]
 	path = submodules/quickstart-microsoft-utilities
 	url = https://github.com/aws-quickstart/quickstart-microsoft-utilities.git
+[submodule "docs/boilerplate"]
+	path = docs/boilerplate
+	url = https://github.com/aws-quickstart/quickstart-documentation-base-common.git
