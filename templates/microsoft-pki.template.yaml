@@ -1,0 +1,373 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template creates a Microsoft two-tier PKI infrastructure comprising an
+  offline root CA and a subordinate issuing CA. **WARNING** This template creates
+  Amazon EC2 Windows instance and related resources. You will be billed for the
+  AWS resources used if you create a stack from this template. (qs-1qpclo7fi)
+Metadata:
+  QuickStartDocumentation:
+    EntrypointName: "Launch into an existing VPC"
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Domain Admin credentials
+        Parameters:
+          - DomainAdminUser
+          - DomainAdminPassword
+      - Label:
+          default: Active Directory configuration
+        Parameters:
+          - DomainDNSName
+          - DomainNetBIOSName
+          - domaincontrollers
+      - Label:
+          default: EC2 Details
+        Parameters:
+          - RootCASubnet
+          - SubCASubnet
+          - DomainMemberSG
+          - ServerSize
+          - KeyPairName
+      - Label:
+          default: ADCS Details
+        Parameters:
+          - RootCACommonName
+          - SubCACommonName
+          - RootCAValidityPeriod
+          - SubCAValidityPeriod
+      - Label:
+          default: AWS Quick Start Configuration
+        Parameters:
+          - QSS3BucketName
+          - QSS3BucketRegion
+          - QSS3KeyPrefix
+    ParameterLabels:
+      DomainAdminUser:
+        default: Domain Admin User
+      DomainAdminPassword:
+        default: Domain Admin Password
+      DomainDNSName:
+        default: 'Fully Qualified Domain Name, i.e. example.com'
+      DomainNetBIOSName:
+        default: 'Domain NetBios Name, i.e. EXAMPLE'
+      domaincontrollers:
+        default: Domain Controller IP addresses, comma delimited
+      ServerSize:
+        default: EC2 Instance Size
+      KeyPairName:
+        default: Key Pair for EC2 Instances
+      RootCASubnet:
+        default: Subnet for the Root CA EC2 instance
+      SubCASubnet:
+        default: Subnet for the Subordinate CA EC2 instance
+      DomainMemberSG:
+        default: AWS Security Group for Active Directory domain members
+      RootCACommonName:
+        default: Common Name for the Root CA
+      SubCACommonName:
+        default: Common Name for the Subordinate CA
+      RootCAValidityPeriod:
+        default: Root CA Validity Period in Years
+      SubCAValidityPeriod:
+        default: Subordinate CA Validity Period in Years
+      QSS3BucketName:
+        default: Quick Start S3 Bucket Name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
+      QSS3KeyPrefix:
+        default: Quick Start S3 Key Prefix
+Parameters:
+  DomainDNSName:
+    Type: String
+    Description: 'Domain DNS name'
+    Default: 'example.com'
+  DomainNetBIOSName:
+    Type: String
+    Description: 'Domain NetBIOS name'
+    Default: 'EXAMPLE'
+  DomainAdminUser:
+    Description: ''
+    NoEcho: 'true'
+    Type: String
+    Default: admin
+  DomainAdminPassword:
+    Description: ''
+    NoEcho: 'true'
+    Type: String
+    Default: ''
+  domaincontrollers:
+    Type: String
+    Description: ''
+    Default: ''
+  RootCACommonName:
+    Type: String
+    Description: 'Common Name for the Root CA, i.e. rca or rootca'
+    Default: ''
+  SubCACommonName:
+    Type: String
+    Description: 'Common name for the Subordinate CA, i.e. subca or ca'
+    Default: ''
+  RootCAValidityPeriod:
+    Type: String
+    Description: 'Root CA validity period in years, default 10'
+    Default: '10'
+  SubCAValidityPeriod:
+    Type: String
+    Description: 'Subordinate CA validity period in years, default 1'
+    Default: '1'
+  KeyPairName:
+    Description: Public/private key pair, which allows you to securely connect to your instance
+      after it launches.
+    Type: AWS::EC2::KeyPair::KeyName
+  ServerSize:
+    Description: T3 small, C5 large, C5 xlarge
+    NoEcho: 'false'
+    Type: String
+    Default: Small
+    AllowedValues:
+      - Small
+      - Medium
+      - Large
+  RootCASubnet:
+    Description: Private Subnet for the Root CA EC2 instance
+    Type: AWS::EC2::Subnet::Id
+    Default: ''
+  SubCASubnet:
+    Description: Private Subnet for the Subordinate CA EC2 instance
+    Type: AWS::EC2::Subnet::Id
+    Default: ''
+  DomainMemberSG:
+    Description: Security Group for Active Directory domain members
+    Type: AWS::EC2::SecurityGroup::Id
+    Default: ''
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
+      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
+      It cannot start or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-microsoft-pki/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+Mappings:
+  EC2Sizing:
+    EC2list:
+      Small: t3.small
+      Medium: c5.large
+      Large: c5.xlarge
+Conditions:
+  GovCloudCondition: !Equals
+    - !Ref 'AWS::Region'
+    - us-gov-west-1
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+Resources:
+  secret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Temporarily Store Domain Credentials with Encryption for Domain
+        Join and DNS Operations
+      SecretString: !Sub
+        - '{"domainuser":"${user}","domainPwd":"${pwd}"}'
+        - user: !Base64
+            Ref: DomainAdminUser
+          pwd: !Base64
+            Ref: DomainAdminPassword
+  role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      MaxSessionDuration: 3600
+      Path: /
+  policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AWS-ADCS-SSMSecretParam
+      Roles:
+        - !Ref 'role'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: SSMParameters
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+            Resource:
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnsubca}.${fqdn}_CA-REQ.req
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnsubca}.${fqdn}-b64.cer
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnrca}.${fqdn}-der.cer
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  cnrca: !Ref 'RootCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnrca}.${fqdn}-p7b.p7b
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  cnrca: !Ref 'RootCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnrca}.${fqdn}-b64.cer
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  cnrca: !Ref 'RootCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+              - !Sub
+                - arn:aws:ssm:${region}:${account}:parameter/${cnsubca}.${fqdn}/adcs-subca/${cnrca}.${fqdn}.crl
+                - region: !Ref 'AWS::Region'
+                  account: !Ref 'AWS::AccountId'
+                  cnsubca: !Ref 'SubCACommonName'
+                  cnrca: !Ref 'RootCACommonName'
+                  fqdn: !Ref 'DomainDNSName'
+          - Sid: SSMSecrets
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DeleteSecret
+            Resource:
+              - !Ref 'secret'
+    DependsOn:
+      - role
+  profile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref 'role'
+  rootca:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/EC2.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        name: !Join
+          - '-'
+          - - !Ref 'DomainNetBIOSName'
+            - !Ref 'RootCACommonName'
+        size: !FindInMap
+          - EC2Sizing
+          - EC2list
+          - !Ref 'ServerSize'
+        key: !Ref 'KeyPairName'
+        iam: !Ref 'profile'
+        public: 'False'
+        subnet: !Ref 'RootCASubnet'
+        sg: !Ref 'DomainMemberSG'
+  subca:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/EC2.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        name: !Join
+          - '-'
+          - - !Ref 'DomainNetBIOSName'
+            - !Ref 'SubCACommonName'
+        size: !FindInMap
+          - EC2Sizing
+          - EC2list
+          - !Ref 'ServerSize'
+        key: !Ref 'KeyPairName'
+        iam: !Ref 'profile'
+        public: 'False'
+        subnet: !Ref 'SubCASubnet'
+        sg: !Ref 'DomainMemberSG'
+  documentrootca:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/RCA.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+  documentrootcarun:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join
+        - /
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/RCA-Run.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        ssmdocname: !GetAtt 'documentrootca.Outputs.docname'
+        ec2targetrca: !GetAtt 'rootca.Outputs.id'
+        domainfqdn: !Ref 'DomainDNSName'
+        domainnetbios: !Ref 'DomainNetBIOSName'
+        domaincnrca: !Ref 'RootCACommonName'
+        domaincnsubca: !Ref 'SubCACommonName'
+        rcavalidity: !Ref 'RootCAValidityPeriod'
+        subcavalidity: !Ref 'SubCAValidityPeriod'
+  documentsubca:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/SubCA.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+  documentsubcarun:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        !Sub
+          - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/SubCA-Run.template'
+          - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
+            S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+      Parameters:
+        ssmdocname: !GetAtt 'documentsubca.Outputs.docname'
+        ec2targetsubca: !GetAtt 'subca.Outputs.id'
+        domainfqdn: !Ref 'DomainDNSName'
+        domainnetbios: !Ref 'DomainNetBIOSName'
+        domaincontrollers: !Ref 'domaincontrollers'
+        domaincredentials: !Ref 'secret'
+        domaincnrca: !Ref 'RootCACommonName'
+        domaincnsubca: !Ref 'SubCACommonName'
+        domainiprca: !GetAtt 'rootca.Outputs.ip'
+        domainipsubca: !GetAtt 'subca.Outputs.ip'
