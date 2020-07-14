@@ -3,7 +3,7 @@ Description: >-
   This template creates a Microsoft two-tier PKI infrastructure comprising an
   offline root CA and a subordinate issuing CA. **WARNING** This template creates
   Amazon EC2 Windows instance and related resources. You will be billed for the
-  AWS resources used if you create a stack from this template. (qp-1qkk6hela)
+  AWS resources used if you create a stack from this template. (qs-1qpclo7fi)
 Metadata:
   QuickStartDocumentation:
     EntrypointName: "Launch into an existing VPC"
@@ -27,7 +27,6 @@ Metadata:
           - SubCASubnet
           - DomainMemberSG
           - ServerSize
-          - ServerChoice
           - KeyPairName
       - Label:
           default: ADCS Details
@@ -55,8 +54,6 @@ Metadata:
         default: Domain Controller IP addresses, comma delimited
       ServerSize:
         default: EC2 Instance Size
-      ServerChoice:
-        default: Microsoft Server OS Base with GUI
       KeyPairName:
         default: Key Pair for EC2 Instances
       RootCASubnet:
@@ -122,15 +119,6 @@ Parameters:
     Description: Public/private key pair, which allows you to securely connect to your instance
       after it launches.
     Type: AWS::EC2::KeyPair::KeyName
-  ServerChoice:
-    Description: 'Windows operating system (2012R2, 2016, or 2019)'
-    NoEcho: 'false'
-    Type: String
-    Default: '2019'
-    AllowedValues:
-      - 2012R2
-      - '2016'
-      - '2019'
   ServerSize:
     Description: T3 small, C5 large, C5 xlarge
     NoEcho: 'false'
@@ -303,7 +291,6 @@ Resources:
           - EC2list
           - !Ref 'ServerSize'
         key: !Ref 'KeyPairName'
-        ami: !Ref 'ServerChoice'
         iam: !Ref 'profile'
         public: 'False'
         subnet: !Ref 'RootCASubnet'
@@ -328,7 +315,6 @@ Resources:
           - EC2list
           - !Ref 'ServerSize'
         key: !Ref 'KeyPairName'
-        ami: !Ref 'ServerChoice'
         iam: !Ref 'profile'
         public: 'False'
         subnet: !Ref 'SubCASubnet'

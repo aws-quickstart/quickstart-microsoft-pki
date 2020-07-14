@@ -29,7 +29,6 @@ Metadata:
           default: Microsoft PKI configuration
         Parameters:
           - ServerSize
-          - ServerChoice
           - RootCACommonName
           - SubCACommonName
           - RootCAValidityPeriod
@@ -79,8 +78,6 @@ Metadata:
         default: RD Gateway server instance type
       ServerSize:
         default: EC2 Instance Size
-      ServerChoice:
-        default: Microsoft Server OS Base with GUI
       RootCASubnet:
         default: Subnet for the Root CA EC2 instance
       SubCASubnet:
@@ -211,15 +208,6 @@ Parameters:
     Type: String
     Description: 'Subordinate CA validity period in years, default 1'
     Default: '1'
-  ServerChoice:
-    Description: 'Windows operating system (2012R2, 2016, or 2019)'
-    NoEcho: 'false'
-    Type: String
-    Default: '2019'
-    AllowedValues:
-      - 2012R2
-      - '2016'
-      - '2019'
   ServerSize:
     Description: T3 small, C5 large, C5 xlarge
     NoEcho: 'false'
@@ -326,7 +314,6 @@ Resources:
           - - !GetAtt 'ADStack.Outputs.ADServer1PrivateIP'
             - !GetAtt 'ADStack.Outputs.ADServer2PrivateIP'
         ServerSize: !Ref 'ServerSize'
-        ServerChoice: !Ref 'ServerChoice'
         KeyPairName: !Ref 'KeyPairName'
         RootCASubnet: !GetAtt 'VPCStack.Outputs.PrivateSubnet1AID'
         SubCASubnet: !GetAtt 'VPCStack.Outputs.PrivateSubnet2AID'
