@@ -328,8 +328,6 @@ Resources:
   documentrootcarun:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Join
-        - /
       TemplateURL:
         !Sub
           - 'https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}templates/RCA-Run.template'
