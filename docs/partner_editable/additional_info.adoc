@@ -3,11 +3,11 @@
 
 == Test the deployment
 
-Using AWS Systems Manager – Session Manager, connect to the Subordinate CA EC2 and run the following powershell command:
+Connect to the RD Gateway via RDP, then connect to the subordinate CA via RDP.
 
-Powershell: > get-content C:\adcs_scripts\ADCS_Deployment_Results.txt
+Open C:\adcs_scripts\ADCS_SubCA_DSPublish.txt
 
-Confirm the output includes the following: "CAIsValid: 1"
+Confirm the output includes the following: "SSL Certificate Successfully Added"
 
 == Best practices for using {partner-product-name} on AWS
 
