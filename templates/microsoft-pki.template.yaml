@@ -78,49 +78,62 @@ Metadata:
         default: Quick Start S3 Key Prefix
 Parameters:
   DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Default: example.com
+    Description: Fully qualified domain name (FQDN) of the forest root domain.
+    MaxLength: '25'
+    MinLength: '2'
     Type: String
-    Description: 'Domain DNS name'
-    Default: 'example.com'
   DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9]+'
+    Default: example
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier
+      versions of Windows.
+    MaxLength: '15'
+    MinLength: '1'
     Type: String
-    Description: 'Domain NetBIOS name'
-    Default: 'EXAMPLE'
   DomainAdminUser:
-    Description: ''
-    NoEcho: 'true'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    Default: Admin
+    Description: User name for the account that will be added as Domain Administrator.
+      This is separate from the default "Administrator" account
+    MaxLength: '25'
+    MinLength: '5'
     Type: String
-    Default: admin
   DomainAdminPassword:
-    Description: ''
+    AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
+    Description: Password for the domain admin user. Must be at least 8 characters
+      and contain letters, numbers, and symbols.
+    MaxLength: '32'
+    MinLength: '8'
     NoEcho: 'true'
     Type: String
-    Default: ''
   domaincontrollers:
     Type: String
-    Description: ''
+    Description: A comma-delimited list of domain controller IP addresses
     Default: ''
   RootCACommonName:
     Type: String
-    Description: 'Common Name for the Root CA, i.e. rca or rootca'
+    Description: Common Name for the Root Certification Authority, i.e. rca or rootca
     Default: ''
   SubCACommonName:
     Type: String
-    Description: 'Common name for the Subordinate CA, i.e. subca or ca'
+    Description: Common name for the Subordinate Certification Authority, i.e. subca or ca
     Default: ''
   RootCAValidityPeriod:
     Type: String
-    Description: 'Root CA validity period in years, default 10'
+    Description: Root Certification Authority validity period in years, default 10
     Default: '10'
   SubCAValidityPeriod:
     Type: String
-    Description: 'Subordinate CA validity period in years, default 1'
+    Description: Subordinate Certification Authority validity period in years, default 1
     Default: '1'
   KeyPairName:
     Description: Public/private key pair, which allows you to securely connect to your instance
       after it launches.
     Type: AWS::EC2::KeyPair::KeyName
   ServerSize:
-    Description: T3 small, C5 large, C5 xlarge
+    Description: Small (T3 small), medium (C5 large), or large (C5 xlarge) EC2 instance size
     NoEcho: 'false'
     Type: String
     Default: Small
@@ -129,15 +142,15 @@ Parameters:
       - Medium
       - Large
   RootCASubnet:
-    Description: Private Subnet for the Root CA EC2 instance
+    Description: Private subnet for the Root Certification Authority EC2 instance
     Type: AWS::EC2::Subnet::Id
     Default: ''
   SubCASubnet:
-    Description: Private Subnet for the Subordinate CA EC2 instance
+    Description: Private subnet for the Subordinate Certification Authority EC2 instance
     Type: AWS::EC2::Subnet::Id
     Default: ''
   DomainMemberSG:
-    Description: Security Group for Active Directory domain members
+    Description: Security group for Active Directory domain members
     Type: AWS::EC2::SecurityGroup::Id
     Default: ''
   QSS3BucketName:
