@@ -1,8 +1,9 @@
 Deploying this Quick Start for a new virtual private cloud (VPC) with *default parameters* builds the following <software> environment in the AWS Cloud.
 
+[#architecture1]
+.Quick Start architecture for {partner-product-name} on AWS
+[link=image1.png[image,width=643,height=432]
 image:./image1.png[image,width=643,height=432]
-
-Figure 1: Quick Start architecture for Microsoft PKI on AWS
 
 As shown in Figure 1, the Quick Start sets up the following:
 
@@ -22,8 +23,9 @@ As shown in Figure 1, the Quick Start sets up the following:
 
 *** The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.
 
-Overview of ADCS Deployment Steps
-
+[#architecture2]
+.Overview of ADCS Deployment Steps
+[link=image2.png[image,width=648,height=355]
 image:./image2.png[image,width=648,height=355]
 
 1.  Run Root CA installation and configuration
