@@ -1,6 +1,6 @@
 :quickstart-project-name: quickstart-microsoft-pki
 :partner-product-name: Public Key Infrastructure
-:partner-company-name: Microsoft
+// :partner-company-name: Microsoft
 :doc-month: July
 :doc-year: 2020
 :partner-contributors: RJ Davis, AWS
