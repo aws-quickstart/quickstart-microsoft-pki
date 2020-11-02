@@ -3,8 +3,8 @@
 // :partner-company-name: Microsoft
 :doc-month: July
 :doc-year: 2020
-:partner-contributors: RJ Davis, AWS
-:quickstart-contributors: Dave May, AWS
+// :partner-contributors: 
+:quickstart-contributors: RJ Davis, AWS and Dave May, AWS
 :deployment_time: 30 minutes
 :default_deployment_region: us-east-1
 // Uncomment these two attributes if you are leveraging
