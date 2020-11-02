@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template deploys a Microsoft 2-tier PKI infrastructure  deploying VPC, Active 
+  This template deploys a Microsoft two-tier PKI infrastructure deploying VPC, Active 
   Directory, and PKI CloudFormation stacks. **WARNING** This template creates Amazon 
   EC2 Windows instance and related resources. You will be billed for the AWS 
   resources used if you create a stack from this template. (qs-1qtre0g7j)
 Metadata:
   QuickStartDocumentation:
-    EntrypointName: "Launch into a new VPC"
+    EntrypointName: "Parameters for deploying into a new VPC"
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
