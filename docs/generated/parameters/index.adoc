@@ -1,1 +1,6 @@
-// placeholder
+
+=== Launch into a new VPC
+include::microsoft-pki-master.template.adoc[]
+
+=== Launch into an existing VPC
+include::microsoft-pki.template.adoc[]
