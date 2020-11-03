@@ -18,7 +18,7 @@ For additional information, see https://docs.aws.amazon.com/AWSCloudFormation/la
 
 == Troubleshooting
 
-Various log files record progress throughout deployment. When you troubleshoot deployment failures, review the error messages in the following log files:
+Various log files record progress throughout deployment. When you troubleshoot deployment failures, review the error messages in the following log files. Fill in your own values for *<instance Id>* and *<commandId>*.
 
 * SubCA log file repository: `C:\adcs_scripts`
 * SubCA SSM PowerShell log file output: `C:\ProgramData\Amazon\SSM\InstanceData\<instanceId>\document\orchestration\<commandId>\..\..\stdoutConsole`
