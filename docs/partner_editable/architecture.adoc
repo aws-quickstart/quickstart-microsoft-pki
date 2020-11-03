@@ -1,41 +1,42 @@
-Deploying this Quick Start for a new virtual private cloud (VPC) with *default parameters* builds the following <software> environment in the AWS Cloud.
+Deploying this Quick Start for a new virtual private cloud (VPC) with default parameters builds the following {partner-product-short-name} environment in the AWS Cloud.
 
+:xrefstyle: short
 [#architecture1]
-.Quick Start architecture for {partner-product-name} on AWS
-[link=image1.png[image,width=643,height=432]
-image:./image1.png[image,width=643,height=432]
+.Quick Start architecture for {partner-product-short-name} on AWS
+image::../images/image1.png[Architecture1,width=100%,height=100%]
 
-As shown in Figure 1, the Quick Start sets up the following:
+As shown in <<architecture1>>, the Quick Start sets up the following:
 
 * An architecture that spans two Availability Zones.*
 * A VPC configured with public and private subnets, according to AWS best practices, to provide you with your own virtual network on AWS.*
-* An AWS Managed Active Directory environment.*
-* 
+* An AWS Directory Service for Microsoft Active Directory (AWS Managed Microsoft AD) environment.*
+
 * In the public subnets:
 
-* Managed network address translation (NAT) gateways to allow outbound internet access for resources in the private subnets.*
-* A Remote Desktop Gateway instance in an Auto Scaling group to allow inbound remote desktop (RDP) access to EC2 instances in public and private subnets.*
+** Managed network address translation (NAT) gateways to allow outbound internet access for resources in the private subnets.*
+** A Remote Desktop Gateway instance in an Auto Scaling group to allow inbound remote desktop (RDP) access to EC2 instances in public and private subnets.*
 
 * In the private subnets:
 
-* An EC2 instance running Microsoft Windows to serve as an offline Root CA
-* An EC2 instance running Microsoft Windows to serve as a Subordinate CA
+** An EC2 instance running Microsoft Windows to serve as an offline root CA.
+** An EC2 instance running Microsoft Windows to serve as a subordinate CA.
 
-*** The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.
+[.small]#*The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
 
 [#architecture2]
-.Overview of ADCS Deployment Steps
-[link=image2.png[image,width=1351,height=751]
-image:./image2.png[image,width=1351,height=751]
+.Overview of ADCS deployment steps
+image::../images/image2.png[Deployment steps overview,width=100%,height=100%]
 
-1.  Run Root CA installation and configuration
-2.  Begin Subordinate CA setup
-3.  Get domain credentials from Secrets Manager
-4.  Join Active Directory Domain
-5.  Add DNS Records for Root CA and Subordinate CA
-6.  Subordinate CA puts CA request (csr) into Parameter Store
-7.  Root CA gets CA request from Parameter Store & Approves
-8.  Root CA puts all certificates and CRLs into Parameter Store
-9.  Subordinate CA gets all certificates from Parameter Store
-10. Subordinate CA uses dspublish and installs certificate for ADCS Activation
-11. Subordinate CA removes domain credentials from Secrets Manager
+<<architecture2>> gives an overview of the following deployment steps: 
+
+1.  Run root CA installation and configuration.
+2.  Begin subordinate CA setup.
+3.  Get domain credentials from Secrets Manager.
+4.  Join Active Directory domain.
+5.  Add DNS records for root CA and subordinate CA.
+6.  Subordinate CA puts a certificate signing request (CSR) into Parameter Store.
+7.  Root CA gets a CA request from Parameter Store and approves it.
+8.  Root CA puts all certificates and CRLs into Parameter Store.
+9.  Subordinate CA gets all certificates from Parameter Store.
+10. Subordinate CA uses `dspublish` and installs certificate to activate ADCS.
+11. Subordinate CA removes domain credentials from Secrets Manager.
