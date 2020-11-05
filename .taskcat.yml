@@ -23,6 +23,7 @@ tests:
       AvailabilityZones: $[taskcat_getaz_2]
       DomainAdminPassword: $[taskcat_genpass_16]
       KeyPairName: $[taskcat_getkeypair]
+      NumberOfRDGWHosts: '0'
       QSS3BucketName: $[taskcat_autobucket]
       QSS3BucketRegion: $[taskcat_current_region]
       RDGWCIDR: 0.0.0.0/0
