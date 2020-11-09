@@ -14,7 +14,7 @@ As shown in <<architecture1>>, the Quick Start sets up the following:
 * In the public subnets:
 
 ** Managed network address translation (NAT) gateways to allow outbound internet access for resources in the private subnets.*
-** A Remote Desktop Gateway instance in an Auto Scaling group to allow inbound remote desktop (RDP) access to EC2 instances in public and private subnets.*
+** A Remote Desktop Gateway (RD Gateway) instance in an Auto Scaling group to allow inbound Remote Desktop Protocol (RDP) access to EC2 instances in public and private subnets.*
 
 * In the private subnets:
 
