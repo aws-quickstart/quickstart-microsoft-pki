@@ -15,7 +15,7 @@ project:
   - us-east-2
   - us-west-1
   - us-west-2
-  template: templates/microsoft-pki-master.template.yaml
+  template: templates/microsoft-pki-main.template.yaml
  
 tests:
   quickstart-microsoft-pki:
