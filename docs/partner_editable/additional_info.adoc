@@ -17,9 +17,6 @@ This Quick Start migrates pertinent folders and files—those related to the cer
 
 After this Quick Start deploys the root CA and generates the root certificate, the root CA is powered off. The root CA is intended to remain offline until the domain root certificate needs to be renewed.
 
-//TODO Dave, Per my earlier comment, here we say that the root CA is intended to remain offline "until the subordinate CA certificate needs to be renewed." In the intro, we say that the root CA stays offline "except when a new root certificate needs to be generated." Please swap in a consistent statement in both places.
-// Fixed
-
 Domain-administrator credentials are stored in AWS Secrets Manager and consumed by the subordinate CA. The subordinate CA uses these credentials to join domains, install certificate services, and add the required DNS records. When these tasks are completed, these credentials are removed from Secrets Manager.
 
 == Other useful information
