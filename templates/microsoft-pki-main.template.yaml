@@ -125,6 +125,7 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
   NumberOfRDGWHosts:
     AllowedValues:
+      - '0'
       - '1'
       - '2'
       - '3'
@@ -223,6 +224,10 @@ Conditions:
     - !Ref 'AWS::Region'
     - us-gov-west-1
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  IncludeRDGW: !Not
+    - !Equals
+      - !Ref NumberOfRDGWHosts
+      - '0'
 Resources:
   VPCStack:
     Type: AWS::CloudFormation::Stack
@@ -257,8 +262,6 @@ Resources:
         DomainDNSName: !Ref 'DomainDNSName'
         DomainNetBIOSName: !Ref 'DomainNetBIOSName'
         KeyPairName: !Ref 'KeyPairName'
-        PrivateSubnet1CIDR: !Ref 'PrivateSubnet1CIDR'
-        PrivateSubnet2CIDR: !Ref 'PrivateSubnet2CIDR'
         PrivateSubnet1ID: !GetAtt 'VPCStack.Outputs.PrivateSubnet1AID'
         PrivateSubnet2ID: !GetAtt 'VPCStack.Outputs.PrivateSubnet2AID'
         VPCID: !GetAtt 'VPCStack.Outputs.VPCID'
@@ -268,6 +271,7 @@ Resources:
         VPCCIDR: !GetAtt 'VPCStack.Outputs.VPCCIDR'
   RDGWStack:
     DependsOn: ADStack
+    Condition: IncludeRDGW
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL:
