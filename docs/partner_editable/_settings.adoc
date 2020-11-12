@@ -1,12 +1,14 @@
 :quickstart-project-name: quickstart-microsoft-pki
-:partner-product-name: Public Key Infrastructure
-// :partner-company-name: Microsoft
-:doc-month: July
+:partner-product-name: Microsoft Public Key Infrastructure (PKI) 
+:partner-product-short-name: Microsoft PKI
+// :partner-company-name: 
+:doc-month: November
 :doc-year: 2020
 // :partner-contributors: 
-:quickstart-contributors: RJ Davis, AWS and Dave May, AWS
+:quickstart-contributors: R. J. Davis and Dave May, AWS
 :deployment_time: 30 minutes
 :default_deployment_region: us-east-1
+:parameters_as_appendix:
 // Uncomment these two attributes if you are leveraging
 // - an AWS Marketplace listing.
 // Additional content will be auto-generated based on these attributes.

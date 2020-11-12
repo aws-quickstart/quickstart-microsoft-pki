@@ -1,12 +1,12 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template deploys a Microsoft 2-tier PKI infrastructure  deploying VPC, Active 
+  This template deploys a Microsoft two-tier PKI infrastructure deploying VPC, Active 
   Directory, and PKI CloudFormation stacks. **WARNING** This template creates Amazon 
-  EC2 Windows instance and related resources. You will be billed for the AWS 
+  EC2 Windows instances and related resources. You will be billed for the AWS 
   resources used if you create a stack from this template. (qs-1qtre0g7j)
 Metadata:
   QuickStartDocumentation:
-    EntrypointName: "Launch into a new VPC"
+    EntrypointName: "Parameters for deploying into a new VPC"
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
@@ -49,13 +49,13 @@ Metadata:
       AvailabilityZones:
         default: Availability Zones
       DomainAdminPassword:
-        default: Domain admin password
+        default: Domain-administrator password
       DomainDNSName:
         default: Domain DNS name
       DomainNetBIOSName:
         default: Domain NetBIOS name
       KeyPairName:
-        default: Key pair name
+        default: Key-pair name
       NumberOfRDGWHosts:
         default: Number of RD Gateway hosts
       PrivateSubnet1CIDR:
@@ -69,7 +69,7 @@ Metadata:
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3BucketRegion:
-        default: Quick Start S3 bucket region
+        default: Quick Start S3 bucket Region
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
       RDGWCIDR:
@@ -77,28 +77,28 @@ Metadata:
       RDGWInstanceType:
         default: RD Gateway server instance type
       ServerSize:
-        default: EC2 Instance Size
+        default: EC2 instance size
       RootCASubnet:
-        default: Subnet for the Root CA EC2 instance
+        default: Subnet for the root CA
       SubCASubnet:
-        default: Subnet for the Subordinate CA EC2 instance
+        default: Subnet for the subordinate CA
       RootCACommonName:
-        default: Common Name for the Root CA
+        default: Common name for the root CA
       SubCACommonName:
-        default: Common Name for the Subordinate CA
+        default: Common name for the subordinate CA
       RootCAValidityPeriod:
-        default: Root CA Validity Period in Years
+        default: Validity period for the root CA
       SubCAValidityPeriod:
-        default: Subordinate CA Validity Period in Years
+        default: Validity period for the subordinate CA
       VPCCIDR:
         default: VPC CIDR
 Parameters:
   AvailabilityZones:
-    Description: 'List of Availability Zones to use for the subnets in the VPC. Only two Availability Zones are used for this deployment, and the logical order is preserved.'
+    Description: 'Availability Zones to use for the subnets in the VPC. This deployment uses two Availability Zones, and it preserves their logical order.'
     Type: List<AWS::EC2::AvailabilityZone::Name>
   DomainAdminPassword:
     AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
-    Description: Password for the domain admin user. Must be at least 8 characters
+    Description: Password for the domain-administrator user. Must be at least 8 characters
       and contain letters, numbers, and symbols.
     MaxLength: '32'
     MinLength: '8'
@@ -120,8 +120,8 @@ Parameters:
     MinLength: '1'
     Type: String
   KeyPairName:
-    Description: Public/private key pair that allows you to securely connect to your instance
-      after it launches.
+    Description: Name of the key pair that you will use to securely connect to your EC2 instance
+      after it launches. The key pair consists of a private key and a public key.
     Type: AWS::EC2::KeyPair::KeyName
   NumberOfRDGWHosts:
     AllowedValues:
@@ -131,17 +131,17 @@ Parameters:
       - '3'
       - '4'
     Default: '1'
-    Description: The number of RD Gateway hosts to create (up to four).
+    Description: Choose a number up to four.
     Type: String
   PrivateSubnet1CIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
     Default: 10.0.0.0/19
-    Description: CIDR block for the Active Directory Server tier located in Availability Zone 1.
+    Description: CIDR block for the Active Directory server tier located in Availability Zone 1.
     Type: String
   PrivateSubnet2CIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
     Default: 10.0.64.0/19
-    Description: CIDR block for the Active Directory Server tier located in Availability Zone 2.
+    Description: CIDR block for the Active Directory server tier located in Availability Zone 2.
     Type: String
   PublicSubnet1CIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
@@ -155,26 +155,22 @@ Parameters:
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+    ConstraintDescription: The Quick Start bucket name can include numbers, lowercase
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
     Default: aws-quickstart
-    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
-      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-      It cannot start or end with a hyphen (-).
+    Description: Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.
     Type: String
   QSS3BucketRegion:
     Default: 'us-east-1'
-    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Description: 'AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Keep the default Region unless you are customizing the template. Changing this Region updates code references to point to a new Quick Start location. When using your own bucket, specify the Region. See https://aws-quickstart.github.io/option1.html.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slash (/).
     Default: quickstart-microsoft-pki/
-    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
-      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/).
+    Description: S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.
     Type: String
   RDGWCIDR:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/([0-9]|[1-2][0-9]|3[0-2]))$
@@ -191,26 +187,26 @@ Parameters:
       - m5.2xlarge
       - m5.4xlarge
     Default: m5.xlarge
-    Description: EC2 instance type for the RD Gateway instance.
+    Description: EC2 instance type for the RD Gateway.
     Type: String
   RootCACommonName:
     Type: String
-    Description: 'Common Name for the Root CA, i.e. rca or rootca'
+    Description: 'Examples: "rca" or "rootca."'
     Default: ''
   SubCACommonName:
     Type: String
-    Description: 'Common name for the Subordinate CA, i.e. subca or ca'
+    Description: 'Examples: "subca" or "ca."'
     Default: ''
   RootCAValidityPeriod:
     Type: String
-    Description: 'Root CA validity period in years, default 10'
+    Description: 'Enter a value in years.'
     Default: '10'
   SubCAValidityPeriod:
     Type: String
-    Description: 'Subordinate CA validity period in years, default 1'
+    Description: 'Enter a value in years.'
     Default: '1'
   ServerSize:
-    Description: T3 small, C5 large, C5 xlarge
+    Description: Choose "Medium" (C5 large) or "Large" (C5 xlarge) if you don't want "Small" (T3 small).
     NoEcho: 'false'
     Type: String
     Default: Small
@@ -221,7 +217,7 @@ Parameters:
   VPCCIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
     Default: 10.0.0.0/16
-    Description: CIDR Block for the VPC.
+    Description: CIDR block for the VPC.
     Type: String
 Conditions:
   GovCloudCondition: !Equals

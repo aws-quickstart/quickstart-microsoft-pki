@@ -2,15 +2,15 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
   This template creates a Microsoft two-tier PKI infrastructure comprising an
   offline root CA and a subordinate issuing CA. **WARNING** This template creates
-  Amazon EC2 Windows instance and related resources. You will be billed for the
+  Amazon EC2 Windows instances and related resources. You will be billed for the
   AWS resources used if you create a stack from this template. (qs-1qpclo7fi)
 Metadata:
   QuickStartDocumentation:
-    EntrypointName: "Launch into an existing VPC"
+    EntrypointName: "Parameters for deploying into an existing VPC"
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
-          default: Domain Admin credentials
+          default: Domain-administrator credentials
         Parameters:
           - DomainAdminUser
           - DomainAdminPassword
@@ -21,7 +21,7 @@ Metadata:
           - DomainNetBIOSName
           - domaincontrollers
       - Label:
-          default: EC2 Details
+          default: EC2 details
         Parameters:
           - RootCASubnet
           - SubCASubnet
@@ -29,53 +29,53 @@ Metadata:
           - ServerSize
           - KeyPairName
       - Label:
-          default: ADCS Details
+          default: AD CS details
         Parameters:
           - RootCACommonName
           - SubCACommonName
           - RootCAValidityPeriod
           - SubCAValidityPeriod
       - Label:
-          default: AWS Quick Start Configuration
+          default: AWS Quick Start configuration
         Parameters:
           - QSS3BucketName
           - QSS3BucketRegion
           - QSS3KeyPrefix
     ParameterLabels:
       DomainAdminUser:
-        default: Domain Admin User
+        default: Domain-administrator user
       DomainAdminPassword:
-        default: Domain Admin Password
+        default: Domain-administrator password
       DomainDNSName:
-        default: 'Fully Qualified Domain Name, i.e. example.com'
+        default: 'Domain DNS name'
       DomainNetBIOSName:
-        default: 'Domain NetBios Name, i.e. EXAMPLE'
+        default: 'Domain NetBios name'
       domaincontrollers:
-        default: Domain Controller IP addresses, comma delimited
+        default: Domain controller IP addresses
       ServerSize:
-        default: EC2 Instance Size
+        default: EC2 instance size
       KeyPairName:
-        default: Key Pair for EC2 Instances
+        default: Key pair name
       RootCASubnet:
-        default: Subnet for the Root CA EC2 instance
+        default: Subnet for the root CA
       SubCASubnet:
-        default: Subnet for the Subordinate CA EC2 instance
+        default: Subnet for the subordinate CA
       DomainMemberSG:
-        default: AWS Security Group for Active Directory domain members
+        default: Security group for Active Directory domain members
       RootCACommonName:
-        default: Common Name for the Root CA
+        default: Common name for the root CA
       SubCACommonName:
-        default: Common Name for the Subordinate CA
+        default: Common name for the subordinate CA
       RootCAValidityPeriod:
-        default: Root CA Validity Period in Years
+        default: Validity period for the root CA
       SubCAValidityPeriod:
-        default: Subordinate CA Validity Period in Years
+        default: Validity period for the subordinate CA
       QSS3BucketName:
-        default: Quick Start S3 Bucket Name
+        default: Quick Start S3 bucket name
       QSS3BucketRegion:
-        default: Quick Start S3 bucket region
+        default: Quick Start S3 bucket Region
       QSS3KeyPrefix:
-        default: Quick Start S3 Key Prefix
+        default: Quick Start S3 key prefix
 Parameters:
   DomainDNSName:
     AllowedPattern: '[a-zA-Z0-9\-]+\..+'
@@ -95,14 +95,14 @@ Parameters:
   DomainAdminUser:
     AllowedPattern: '[a-zA-Z0-9]*'
     Default: Admin
-    Description: User name for the account that will be added as Domain Administrator.
-      This is separate from the default "Administrator" account
+    Description: User name for the account that will be added as the domain administrator.
+      This is separate from the default "Administrator" account.
     MaxLength: '25'
     MinLength: '5'
     Type: String
   DomainAdminPassword:
     AllowedPattern: (?=^.{6,255}$)((?=.*\d)(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[^A-Za-z0-9])(?=.*[a-z])|(?=.*[^A-Za-z0-9])(?=.*[A-Z])(?=.*[a-z])|(?=.*\d)(?=.*[A-Z])(?=.*[^A-Za-z0-9]))^.*
-    Description: Password for the domain admin user. Must be at least 8 characters
+    Description: Password for the domain-administrator user. Must be at least 8 characters
       and contain letters, numbers, and symbols.
     MaxLength: '32'
     MinLength: '8'
@@ -110,30 +110,30 @@ Parameters:
     Type: String
   domaincontrollers:
     Type: String
-    Description: A comma-delimited list of domain controller IP addresses
+    Description: A comma-delimited list of domain controller IP addresses.
     Default: ''
   RootCACommonName:
     Type: String
-    Description: Common Name for the Root Certification Authority, i.e. rca or rootca
+    Description: 'Examples: "rca" or "rootca."'
     Default: ''
   SubCACommonName:
     Type: String
-    Description: Common name for the Subordinate Certification Authority, i.e. subca or ca
+    Description: 'Examples: "subca" or "ca."'
     Default: ''
   RootCAValidityPeriod:
     Type: String
-    Description: Root Certification Authority validity period in years, default 10
+    Description: Enter a value in years.
     Default: '10'
   SubCAValidityPeriod:
     Type: String
-    Description: Subordinate Certification Authority validity period in years, default 1
+    Description: Enter a value in years.
     Default: '1'
   KeyPairName:
-    Description: Public/private key pair, which allows you to securely connect to your instance
-      after it launches.
+    Description: Name of the key pair that you will use to securely connect to your EC2 instance
+      after it launches. The key pair consists of a private key and a public key.
     Type: AWS::EC2::KeyPair::KeyName
   ServerSize:
-    Description: Small (T3 small), medium (C5 large), or large (C5 xlarge) EC2 instance size
+    Description: Choose "Medium" (C5 large) or "Large" (C5 xlarge) if you don't want "Small" (T3 small).
     NoEcho: 'false'
     Type: String
     Default: Small
@@ -142,15 +142,15 @@ Parameters:
       - Medium
       - Large
   RootCASubnet:
-    Description: Private subnet for the Root Certification Authority EC2 instance
+    Description: Private subnet for the root CA EC2 instance.
     Type: AWS::EC2::Subnet::Id
     Default: ''
   SubCASubnet:
-    Description: Private subnet for the Subordinate Certification Authority EC2 instance
+    Description: Private subnet for the subordinate CA EC2 instance.
     Type: AWS::EC2::Subnet::Id
     Default: ''
   DomainMemberSG:
-    Description: Security group for Active Directory domain members
+    Description: AWS security group for Active Directory domain members.
     Type: AWS::EC2::SecurityGroup::Id
     Default: ''
   QSS3BucketName:
@@ -159,22 +159,18 @@ Parameters:
       letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
       (-).
     Default: aws-quickstart
-    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
-      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-      It cannot start or end with a hyphen (-).
+    Description: Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.
     Type: String
   QSS3BucketRegion:
     Default: 'us-east-1'
-    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Description: 'AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Keep the default Region unless you are customizing the template. Changing this Region updates code references to point to a new Quick Start location. When using your own bucket, specify the Region. See https://aws-quickstart.github.io/option1.html.'
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
     ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
       uppercase letters, hyphens (-), and forward slash (/).
     Default: quickstart-microsoft-pki/
-    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
-      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/).
+    Description: S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.
     Type: String
 Mappings:
   EC2Sizing:
@@ -191,8 +187,8 @@ Resources:
   secret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Description: Temporarily Store Domain Credentials with Encryption for Domain
-        Join and DNS Operations
+      Description: Temporarily store domain credentials with encryption for domain
+        join and DNS operations.
       SecretString: !Sub
         - '{"domainuser":"${user}","domainPwd":"${pwd}"}'
         - user: !Base64

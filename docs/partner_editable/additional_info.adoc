@@ -3,23 +3,26 @@
 
 == Test the deployment
 
-Connect to the RD Gateway via RDP, then connect to the subordinate CA via RDP.
+. Connect to the RD Gateway via RDP, then connect to the subordinate CA via RDP.
 
-Open C:\adcs_scripts\ADCS_SubCA_DSPublish.txt
+. Open `C:\adcs_scripts\ADCS_SubCA_DSPublish.txt`.
 
-Confirm the output includes the following: "SSL Certificate Successfully Added"
+. Confirm that the output includes the following: "SSL Certificate Successfully Added."
 
-== Best practices for using {partner-product-name} on AWS
+== Best practices for using {partner-product-short-name} on AWS
 
-This quickstart migrates pertinent folders and files related to the certificate services to an additional EBS volume [ D:\ ]. It is recommended to back-up the PKI deployment including private key and current certificate database.
+This Quick Start migrates pertinent folders and files—those related to the certificate services—to an Amazon Elastic Block Store (Amazon EBS) volume [D:\]. Back up the {partner-product-short-name} deployment, including the private key and the current certificate database.
 
 == Security
 
-After this Quick Start deploys the Root CA server and generates the root certificate, the Root CA server is powered off, and is intended to remain offline until the Subordinate CA certificate needs to be renewed.
+After this Quick Start deploys the root CA and generates the root certificate, the root CA is powered off. The root CA is intended to remain offline until the domain root certificate needs to be renewed.
 
-Domain administrator credentials are stored in AWS Secrets Manager and consumed by the Subordinate CA for domain joining, installing certificate services and adding the required dns records. When these tasks are completed, the domain administrator credentials are removed from AWS Secrets Manager.
+//TODO Dave, Per my earlier comment, here we say that the root CA is intended to remain offline "until the subordinate CA certificate needs to be renewed." In the intro, we say that the root CA stays offline "except when a new root certificate needs to be generated." Please swap in a consistent statement in both places.
+// Fixed
+
+Domain-administrator credentials are stored in AWS Secrets Manager and consumed by the subordinate CA. The subordinate CA uses these credentials to join domains, install certificate services, and add the required DNS records. When these tasks are completed, these credentials are removed from Secrets Manager.
 
 == Other useful information
 
-{https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-server-certificate-template}[Configure the server certificate template]
-{https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-server-certificate-autoenrollment}[Configure certificate auto-enrollment]
+* https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-the-server-certificate-template[Configure the Server Certificate Template^]
+* https://docs.microsoft.com/en-us/windows-server/networking/core-network-guide/cncg/server-certs/configure-server-certificate-autoenrollment[Configure certificate auto-enrollment^]
