@@ -11,3 +11,4 @@ This Quick Start deploys both a root CA and a subordinate CA. The root CA acts a
 
 //TODO Dave, Here, we say that the root CA stays offline "except when a new root certificate needs to be generated." Later (under "Security"), we say that the root CA is intended to remain offline "until the subordinate CA certificate needs to be renewed." Please swap in a consistent statement in both places. Thank you!
 //TODO Marcia note to self: Update the landing page accordingly.
+//Fixed in the Security section
