@@ -9,34 +9,50 @@ As shown in <<architecture1>>, the Quick Start sets up the following:
 
 * An architecture that spans two Availability Zones.*
 * A VPC configured with public and private subnets, according to AWS best practices, to provide you with your own virtual network on AWS.*
-* An AWS Directory Service for Microsoft Active Directory (AWS Managed Microsoft AD) environment.*
+* An AWS Directory Service environment to help you reduce insecure, unsigned network traffic.*
+
+//TODO Dave, I changed this name to match the service icon we show. Originally, this bullet said "AWS Managed Active Directory environment." Do we need to keep that reference? If so, how would we modify our description to include both? Also, would we add an "AWS Managed Microsoft AD" resource icon (or else say "not shown")?
+//TODO Dave, Is the bullet above had two asterisks in the draft. Was that intentional? I changed it to one here, but I'm not sure that it goes with our footnote. Does it?
 
 * In the public subnets:
-
 ** Managed network address translation (NAT) gateways to allow outbound internet access for resources in the private subnets.*
 ** A Remote Desktop Gateway (RD Gateway) instance in an Auto Scaling group to allow inbound Remote Desktop Protocol (RDP) access to EC2 instances in public and private subnets.*
 
 * In the private subnets:
+** In Availability Zone 1, an EC2 instance running Windows to serve as an offline root CA.
+** In Availability Zone 2, an EC2 instance running Windows to serve as a subordinate CA.
+* AWS Identity and Access Management (IAM), which ...
+* AWS Secrets Manager, which ...
+* AWS Systems Manager, which ...
 
-** An EC2 instance running Microsoft Windows to serve as an offline root CA.
-** An EC2 instance running Microsoft Windows to serve as a subordinate CA.
+//TODO Dave, please complete the last few bullets ("which ...").
 
-[.small]#*The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+[.small]#* The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+
+== The AD CS deployment process
+
+Active Directory Certificate Services (AD CS) ...
+
+//TODO Dave, please introduce this topic briefly. (1) How does AD CS fit with this Quick Start? (2) Set the context for the process we're about to show. (3) Distinguish "deploy" here from deploying the Quick Start itself, or else use a different word here. (4) Clarify whether the following steps are actions to take right now or whether this section is simply explaining the process and they'll take the actions later (in which case, point to that later spot in the deployment guide). 
 
 [#architecture2]
-.Overview of ADCS deployment steps
+.The AD CS deployment process
 image::../images/image2.png[Deployment steps overview,width=100%,height=100%]
 
-<<architecture2>> gives an overview of the following deployment steps: 
+Deploying AD CS, as shown in <<architecture2>>, includes these steps: 
 
-1.  Run root CA installation and configuration.
-2.  Begin subordinate CA setup.
-3.  Get domain credentials from Secrets Manager.
-4.  Join Active Directory domain.
-5.  Add DNS records for root CA and subordinate CA.
-6.  Subordinate CA puts a certificate signing request (CSR) into Parameter Store.
-7.  Root CA gets a CA request from Parameter Store and approves it.
-8.  Root CA puts all certificates and CRLs into Parameter Store.
-9.  Subordinate CA gets all certificates from Parameter Store.
-10. Subordinate CA uses `dspublish` and installs certificate to activate ADCS.
-11. Subordinate CA removes domain credentials from Secrets Manager.
+//TODO Dave, In the steps below, how does the SSM core role fits in?
+//TODO Dave, Does SSM stand for Simple Systems Manager? What might we want to say about this, either here or elsewhere? (Note to self: if we don't spell out SSM here, I'll do so later where we use this acronym.)
+//TODO Dave, Are these steps intended simply to describe the process or to give instructions to follow? They're a hybrid right now. I suggest changing steps 1-5 to describe who or what is doing the action instead of using imperative verbs so that this whole thing is clearly descriptive vs. prescriptive.
+
+1.  Install and configure the root CA.
+2.  Install and configure the subordinate CA.
+3.  Get the domain credentials from Secrets Manager.
+4.  Join the Active Directory domain.
+5.  Add the Domain Name System (DNS) records for the root CA and subordinate CA.
+6.  The subordinate CA puts a certificate-signing request into Parameter Store.
+7.  The root CA gets a CA request from Parameter Store and approves it.
+8.  The root CA puts all certificates and certificate-revocation lists into Parameter Store.
+9.  The subordinate CA gets all certificates from Parameter Store.
+10. (Not shown) The subordinate CA uses `dspublish` to install the certificate and activate AD CS.
+11. (Not shown) The subordinate CA removes the domain credentials from Secrets Manager.

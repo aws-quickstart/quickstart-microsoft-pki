@@ -4,4 +4,4 @@
 
 This guide provides instructions for deploying the {partner-product-short-name} Quick Start reference architecture on the AWS Cloud.
 
-This Quick Start is for systems administrators and IT engineers who need to deploy root and subordinate certificate authorities (CAs) in their Active Directory environments.
+This Quick Start is for systems administrators and IT engineers who need to deploy root and subordinate certification authorities (CAs) in their Active Directory environments.
