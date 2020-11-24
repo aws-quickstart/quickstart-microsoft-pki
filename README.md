@@ -1,4 +1,4 @@
-## Microsoft Public Key Infrastructure (PKI) on the AWS Cloud—Quick Start
+## Microsoft Public Key Infrastructure on the AWS Cloud—Quick Start
 
 For architectural details, step-by-step instructions, and customization options, see the [deployment guide](https://fwd.aws/a4Rdx).
 
