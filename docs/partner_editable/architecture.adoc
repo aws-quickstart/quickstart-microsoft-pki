@@ -18,8 +18,8 @@ As shown in <<architecture1>>, the Quick Start sets up the following:
 ** In Availability Zone 1, an EC2 instance running Windows to serve as an offline root CA.
 ** In Availability Zone 2, an EC2 instance running Windows to serve as a subordinate CA.
 * AWS Directory Service, which helps deploy an Active Directory Certificate Services (AD CS) environment.*
-* AWS Secrets Manager to securely store credentials.
-* AWS Systems Manager (SSM) to automate the CA deployment process and store the generated certificates.
+* AWS Secrets Manager to store credentials.
+* AWS Systems Manager (formerly known as Amazon Simple Systems Manager, or SSM) to automate the CA deployment process and store the generated certificates.
 * AWS Identity and Access Management (IAM) to enable the EC2 instances and Systems Manager automation documents to perform their tasks.
 
 [.small]#* The template that deploys the Quick Start into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
