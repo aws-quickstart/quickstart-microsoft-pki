@@ -1,5 +1,5 @@
 :quickstart-project-name: quickstart-microsoft-pki
-:partner-product-name: Microsoft Public Key Infrastructure (PKI) 
+:partner-product-name: Microsoft Public Key Infrastructure 
 :partner-product-short-name: Microsoft PKI
 // :partner-company-name: 
 :doc-month: November
