@@ -22,6 +22,8 @@ Metadata:
       - Label:
           default: Microsoft Active Directory configuration
         Parameters:
+          - ADServer1PrivateIP
+          - ADServer2PrivateIP
           - DomainAdminPassword
           - DomainDNSName
           - DomainNetBIOSName
@@ -46,6 +48,10 @@ Metadata:
           - QSS3BucketRegion
           - QSS3KeyPrefix
     ParameterLabels:
+      ADServer1PrivateIP:
+        default: Domain Controller 1 Private IP Address
+      ADServer2PrivateIP:
+        default: Domain Controller 2 Private IP Address
       AvailabilityZones:
         default: Availability Zones
       DomainAdminPassword:
@@ -93,6 +99,18 @@ Metadata:
       VPCCIDR:
         default: VPC CIDR
 Parameters:
+  ADServer1PrivateIP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.0.10
+    Description: Fixed private IP for the first Active Directory server located in
+      Availability Zone 1
+    Type: String
+  ADServer2PrivateIP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Default: 10.0.32.10
+    Description: Fixed private IP for the second Active Directory server located in
+      Availability Zone 2
+    Type: String
   AvailabilityZones:
     Description: 'Availability Zones to use for the subnets in the VPC. This deployment uses two Availability Zones, and it preserves their logical order.'
     Type: List<AWS::EC2::AvailabilityZone::Name>
@@ -258,6 +276,8 @@ Resources:
           - S3Region: !If [UsingDefaultBucket, !Ref 'AWS::Region', !Ref QSS3BucketRegion]
             S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
       Parameters:
+        ADServer1PrivateIP: !Ref 'ADServer1PrivateIP'
+        ADServer2PrivateIP: !Ref 'ADServer2PrivateIP'
         DomainAdminPassword: !Ref 'DomainAdminPassword'
         DomainDNSName: !Ref 'DomainDNSName'
         DomainNetBIOSName: !Ref 'DomainNetBIOSName'
@@ -312,8 +332,8 @@ Resources:
         DomainNetBIOSName: !Ref 'DomainNetBIOSName'
         domaincontrollers: !Join
           - ','
-          - - !GetAtt 'ADStack.Outputs.ADServer1PrivateIP'
-            - !GetAtt 'ADStack.Outputs.ADServer2PrivateIP'
+          - - !Ref 'ADServer1PrivateIP'
+            - !Ref 'ADServer2PrivateIP'
         ServerSize: !Ref 'ServerSize'
         KeyPairName: !Ref 'KeyPairName'
         RootCASubnet: !GetAtt 'VPCStack.Outputs.PrivateSubnet1AID'
