@@ -140,12 +140,12 @@ Parameters:
     Type: String
   PrivateSubnet2CIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
-    Default: 10.0.64.0/19
+    Default: 10.0.32.0/19
     Description: CIDR block for the Active Directory server tier located in Availability Zone 2.
     Type: String
   PublicSubnet1CIDR:
     AllowedPattern: '[a-zA-Z0-9]+\..+'
-    Default: 10.0.32.0/20
+    Default: 10.0.64.0/20
     Description: CIDR block for the public (DMZ) subnet located in Availability Zone 1.
     Type: String
   PublicSubnet2CIDR:
