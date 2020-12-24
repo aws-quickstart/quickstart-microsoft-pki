@@ -36,6 +36,10 @@ Metadata:
           - RootCAValidityPeriod
           - SubCAValidityPeriod
       - Label:
+          default: IAM Permissions Boundary
+        Parameters:
+          - PermissionsBoundaryArn
+      - Label:
           default: AWS Quick Start configuration
         Parameters:
           - QSS3BucketName
@@ -70,6 +74,8 @@ Metadata:
         default: Validity period for the root CA
       SubCAValidityPeriod:
         default: Validity period for the subordinate CA
+      PermissionsBoundaryArn:
+        default: ARN of an IAM Permissions boundary policy
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3BucketRegion:
@@ -153,6 +159,10 @@ Parameters:
     Description: AWS security group for Active Directory domain members.
     Type: AWS::EC2::SecurityGroup::Id
     Default: ''
+  PermissionsBoundaryArn:
+    Description: Optional ARN of an IAM Permissions boundary policy if you are required to use a permissions boundary whenever you create an IAM role.
+    Type: String
+    Default: ''
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     ConstraintDescription: Quick Start bucket name can include numbers, lowercase
@@ -179,10 +189,8 @@ Mappings:
       Medium: c5.large
       Large: c5.xlarge
 Conditions:
-  GovCloudCondition: !Equals
-    - !Ref 'AWS::Region'
-    - us-gov-west-1
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+  UsingPermissionsBoundary: !Not [!Equals [ !Ref 'PermissionsBoundaryArn', '' ] ]
 Resources:
   secret:
     Type: AWS::SecretsManager::Secret
@@ -209,6 +217,7 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      PermissionsBoundary: !If [ UsingPermissionsBoundary, !Ref PermissionsBoundaryArn, !Ref 'AWS::NoValue' ]
       MaxSessionDuration: 3600
       Path: /
   policy:
@@ -274,8 +283,6 @@ Resources:
               - secretsmanager:DeleteSecret
             Resource:
               - !Ref 'secret'
-    DependsOn:
-      - role
   profile:
     Type: AWS::IAM::InstanceProfile
     Properties:
