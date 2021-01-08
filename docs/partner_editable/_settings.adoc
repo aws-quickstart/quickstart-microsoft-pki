@@ -2,10 +2,10 @@
 :partner-product-name: Microsoft Public Key Infrastructure 
 :partner-product-short-name: Microsoft PKI
 // :partner-company-name: 
-:doc-month: November
-:doc-year: 2020
+:doc-month: January
+:doc-year: 2021
 // :partner-contributors: 
-:quickstart-contributors: R. J. Davis and Dave May, AWS
+:quickstart-contributors: R. J. Davis, Jeremy Girven, and Dave May, AWS
 :deployment_time: 30 minutes
 :default_deployment_region: us-east-1
 :parameters_as_appendix:

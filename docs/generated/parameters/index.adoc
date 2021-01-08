@@ -1,6 +1,6 @@
 
 === Parameters for deploying into a new VPC
-include::microsoft-pki-master.template.adoc[]
+include::microsoft-pki-main.template.adoc[]
 
 === Parameters for deploying into an existing VPC
 include::microsoft-pki.template.adoc[]

@@ -9,5 +9,5 @@
 |IAM roles |1
 |EC2 instances |3
 |Secrets Manager |2
-|Systems Manager Parameter Store |6
+|AWS Managed Directories|1
 |===

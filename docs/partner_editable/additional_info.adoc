@@ -5,9 +5,9 @@
 
 . Connect to the RD Gateway via RDP, then connect to the subordinate CA via RDP.
 
-. Open `C:\adcs_scripts\ADCS_SubCA_DSPublish.txt`.
+. Navigate to http://<subordinate CA FQDN>/certsrv
 
-. Confirm that the output includes the following: "SSL Certificate Successfully Added."
+. Issue a test certificate
 
 == Best practices for using {partner-product-short-name} on AWS
 
@@ -17,7 +17,7 @@ This Quick Start migrates pertinent folders and files—those related to the cer
 
 After this Quick Start deploys the root CA and generates the root certificate, the root CA is powered off. The root CA is intended to remain offline until the domain root certificate needs to be renewed.
 
-Domain-administrator credentials are stored in AWS Secrets Manager and consumed by the subordinate CA. The subordinate CA uses these credentials to join domains, install certificate services, and add the required DNS records. When these tasks are completed, these credentials are removed from Secrets Manager.
+Domain-administrator credentials are stored in AWS Secrets Manager and consumed by the subordinate CA. The subordinate CA uses these credentials to join domains, install certificate services, and add the required DNS records.
 
 == Other useful information
 

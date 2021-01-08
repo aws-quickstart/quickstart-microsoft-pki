@@ -330,9 +330,6 @@ Rules:
       - AssertDescription: CRL BucketName cannot must be valid BucketName
         Assert: !Not [!Equals [!Ref S3CRLBucketName, 'examplebucket']]
 Conditions:
-  GovCloudCondition: !Equals
-    - !Ref 'AWS::Region'
-    - us-gov-west-1
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
   IncludeRDGW: !Not
     - !Equals

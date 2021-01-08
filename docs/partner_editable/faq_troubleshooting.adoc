@@ -18,10 +18,6 @@ For additional information, see https://docs.aws.amazon.com/AWSCloudFormation/la
 
 == Troubleshooting
 
-Various log files record progress throughout deployment. When you troubleshoot deployment failures, review the error messages in the following log files. Fill in your own values for *<instance Id>* and *<commandId>*.
-
-* Subordinate CA log-file repository: `C:\adcs_scripts`
-* Subordinate CA SSM PowerShell log-file output: `C:\ProgramData\Amazon\SSM\InstanceData\<instanceId>\document\orchestration\<commandId>\..\..\stdoutConsole`
-* Root CA SSM PowerShell log file: `C:\ProgramData\Amazon\SSM\InstanceData\<instanceId>\document\orchestration\<commandId>\..\..\stdoutConsole`
+The Systems Manager automation documents used in this deployment store the output of their PowerShell scripts in CloudWatch Logs.
 
 See also https://docs.aws.amazon.com/systems-manager/latest/userguide/troubleshooting-remote-commands.html[Troubleshooting Systems Manager Run Command^].
