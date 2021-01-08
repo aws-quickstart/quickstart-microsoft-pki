@@ -1,6 +1,7 @@
 project:
   owner: quickstart-eng@amazon.com
   name: quickstart-microsoft-pki
+  package_lambda: false
   regions:
   - ap-northeast-1
   - ap-northeast-2
@@ -15,8 +16,6 @@ project:
   - us-east-2
   - us-west-1
   - us-west-2
-  template: templates/microsoft-pki-main.template.yaml
- 
 tests:
   quickstart-microsoft-pki:
     parameters:
@@ -41,3 +40,4 @@ tests:
     - us-east-2
     - us-west-1
     - us-west-2
+    template: templates/microsoft-pki-main.template.yaml
