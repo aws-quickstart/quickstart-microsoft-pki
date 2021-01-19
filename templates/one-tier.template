@@ -53,7 +53,7 @@ Metadata:
       EntCaServerSubnet:
         default: Enterprise Root CA Subnet ID
       DomainMembersSG:
-        default: Security Group ID for the Domain Members Security Group.  
+      default: Domain Members Security Group ID
       EntCaServerInstanceType:
         default: Enterprise Root CA Instance Type
       EntCaDataDriveSizeGiB:

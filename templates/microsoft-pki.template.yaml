@@ -59,7 +59,7 @@ Metadata:
       CaServerSubnet:
         default: CA(s) Subnet ID
       DomainMembersSG:
-        default: Security Group ID for the Domain Members Security Group
+        default: Domain Members Security Group ID
       OrCaServerInstanceType:
         default: Offline Root CA Instance Type (Only Used For Two Tier PKI)
       OrCaDataDriveSizeGiB:

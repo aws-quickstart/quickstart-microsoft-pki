@@ -62,7 +62,7 @@ Metadata:
       SubCaServerSubnet:
         default: Subordinate CA Subnet ID
       DomainMembersSG:
-        default: Security Group ID for the Domain Members Security Group.  
+      default: Domain Members Security Group ID
       OrCaServerInstanceType:
         default: Offline Root CA Instance Type
       OrCaDataDriveSizeGiB:
@@ -104,9 +104,9 @@ Metadata:
       SubCaValidityPeriodUnits:
         default: Subordinate CA Certificate Validity Period in Years
       UseS3ForCRL:
-        default: CA CRL S3 Bucket Name
+      default: Use S3 for CA CRL Location
       S3CRLBucketName:
-        default: S3 bucket name for Offline Root and Subordinate CA CRL
+      default: CA CRL S3 Bucket Name
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3KeyPrefix:
