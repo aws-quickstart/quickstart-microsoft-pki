@@ -22,6 +22,10 @@ Param (
     [Parameter(Mandatory = $true)][ValidateSet('AWSManaged', 'SelfManaged')][String]$DirectoryType
 )
 
+#==================================================
+# Variables
+#==================================================
+
 $CompName = $env:COMPUTERNAME
 
 Write-Output 'Getting AD domain information'
@@ -42,6 +46,22 @@ Try{
 
 $FQDN = $Domain | Select-Object -ExpandProperty 'DNSRoot'
 $Netbios = $Domain | Select-Object -ExpandProperty 'NetBIOSName'
+$Folders = @(
+    'D:\Pki\Req',
+    'D:\ADCS\DB',
+    'D:\ADCS\Log'
+)
+$FilePath = 'D:\Pki'
+$Principals = @(
+    'ANONYMOUS LOGON',
+    'EVERYONE'
+)
+
+
+
+#==================================================
+# Main
+#==================================================
 
 Write-Output "Getting $ADAdminSecParam Secret"
 Try {
@@ -129,11 +149,6 @@ If ($UseS3ForCRL -eq 'No' -and $DirectoryType -eq 'SelfManaged') {
 }
 
 Write-Output 'Creating PKI folders'
-$Folders = @(
-    'D:\Pki\Req',
-    'D:\ADCS\DB',
-    'D:\ADCS\Log'
-)
 Foreach ($Folder in $Folders) {
     $PathPresent = Test-Path -Path $Folder -ErrorAction SilentlyContinue
     If (-not $PathPresent) {
@@ -186,14 +201,7 @@ If ($UseS3ForCRL -eq 'No') {
         Write-Output "Failed to set IIS directoryBrowse  $_"
         Exit 1
     }
-
-    $Principals = @(
-        'ANONYMOUS LOGON',
-        'EVERYONE'
-    )
-
     Write-Output 'Setting PKI folder file system ACLs'
-    $FilePath = 'D:\Pki'
     Foreach ($Princ in $Principals) {
         $Principal = New-Object -TypeName 'System.Security.Principal.NTAccount'($Princ)
         $Perms = [System.Security.AccessControl.FileSystemRights]'Read, ReadAndExecute, ListDirectory'
@@ -230,7 +238,14 @@ If ($UseS3ForCRL -eq 'No') {
         $URL = "URL=http://$CompName.$FQDN/pki/cps.txt"
     }
 } Else {
-    $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value'
+    Write-Output 'Getting S3 bucket location'
+    Try {
+        $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value' -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to get S3 bucket location $_"
+        Exit 1
+    }
+
     If ($BucketRegion -eq ''){
         $S3BucketUrl = "$S3CRLBucketName.s3.amazonaws.com"
     } Else {
@@ -238,7 +253,13 @@ If ($UseS3ForCRL -eq 'No') {
     }
     $URL = "URL=http://$S3BucketUrl/SubCa/cps.txt"
 
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly
+    Write-Output 'Copying cps.txt to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy cps.txt to S3 bucket $_"
+        Exit 1
+    }
 }
 
 $Inf = @(

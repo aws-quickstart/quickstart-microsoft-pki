@@ -7,7 +7,6 @@
     
     .EXAMPLE
     .\Invoke-TwoTierSubCaCertIssue -DomainDNSName 'example.com' -ADAdminSecParam 'arn:aws:secretsmanager:us-west-2:############:secret:example-VX5fcW' -UseS3ForCRL 'Yes' -DirectoryType 'AWSManaged'
-
 #>
 
 [CmdletBinding()]
@@ -18,7 +17,15 @@ Param (
     [Parameter(Mandatory = $true)][ValidateSet('AWSManaged', 'SelfManaged')][String]$DirectoryType
 )
 
+#==================================================
+# Variables
+#==================================================
+
 $CAComputerName = "$env:COMPUTERNAME\$env:COMPUTERNAME"
+
+#==================================================
+# Main
+#==================================================
 
 Write-Output "Getting $ADAdminSecParam Secret"
 Try {

@@ -12,6 +12,25 @@
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+#==================================================
+# Variables
+#==================================================
+
+$Modules = @(
+    @{
+        Name = 'NetworkingDsc'
+        Version = '8.2.0'
+    },
+    @{
+        Name = 'ComputerManagementDsc'
+        Version = '8.4.0'
+    }
+)
+
+#==================================================
+# Main
+#==================================================
+
 Write-Output 'Installing NuGet Package Provider'
 Try {
     $Null = Install-PackageProvider -Name 'NuGet' -MinimumVersion '2.8.5' -Force -ErrorAction Stop
@@ -29,17 +48,6 @@ Try {
 }
 
 Write-Output 'Installing the needed Powershell DSC modules for this Quick Start'
-$Modules = @(
-    @{
-        Name = 'NetworkingDsc'
-        Version = '8.2.0'
-    },
-    @{
-        Name = 'ComputerManagementDsc'
-        Version = '8.4.0'
-    }
-)
-
 Foreach ($Module in $Modules) {
     Try {
         Install-Module -Name $Module.Name -RequiredVersion $Module.Version -ErrorAction Stop
@@ -50,7 +58,12 @@ Foreach ($Module in $Modules) {
 }
 
 Write-Output 'Temporarily disabling Windows Firewall'
-Get-NetFirewallProfile -ErrorAction Stop | Set-NetFirewallProfile -Enabled False -ErrorAction Stop
+Try {
+    Get-NetFirewallProfile -ErrorAction Stop | Set-NetFirewallProfile -Enabled False -ErrorAction Stop
+} Catch [System.Exception] {
+    Write-Output "Failed to disable Windows Firewall $_"
+    Exit 1
+}
 
 Write-Output 'Creating Directory for DSC Public Cert'
 Try {
@@ -79,7 +92,12 @@ Try {
 Write-Output 'Finding RAW Disk'
 $Counter = 0
 Do {
-    $BlankDisk = Get-Disk -ErrorAction Stop | Where-Object { $_.partitionstyle -eq 'raw' }
+    Try {
+        $BlankDisk = Get-Disk -ErrorAction Stop | Where-Object { $_.partitionstyle -eq 'raw' }
+    } Catch [System.Exception] {
+        Write-Output "Failed to get disk $_"
+        $BlankDisk = $Null
+    }
     If (-not $BlankDisk) {
         $Counter ++
         Write-Output 'RAW Disk not found sleeping 10 seconds and will try again.'
