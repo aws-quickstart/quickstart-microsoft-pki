@@ -27,12 +27,12 @@ Metadata:
       - Label:
           default: Microsoft Active Directory Domain Services Configuration
         Parameters:
+          - DirectoryType
           - DomainDNSName
           - DomainNetBIOSName
           - DomainController1IP
           - DomainController2IP
           - AdministratorSecret
-          - DirectoryType
       - Label:
           default: Microsoft Active Directory Certificate Services Configuration
         Parameters:
@@ -59,33 +59,33 @@ Metadata:
       CaServerSubnet:
         default: CA(s) Subnet ID
       DomainMembersSG:
-        default: Security Group ID for Domain Members Security Group.  
+        default: Domain Members Security Group ID
       OrCaServerInstanceType:
         default: Offline Root CA Instance Type (Only Used For Two Tier PKI)
       OrCaDataDriveSizeGiB:
-        default: Size of the Data Drive in GiB for Offline Root CA (Only Used For Two Tier PKI)
+        default: Offline Root CA Data Drive Size (Only Used For Two Tier PKI)
       EntCaServerInstanceType:
         default: Enterprise Root or Subordinate CA Instance Type
       EntCaDataDriveSizeGiB:
-        default: Size of the Data Drive in GiB for Enterprise Root or Subordinate CA
+        default: Enterprise Root or Subordinate CA Data Drive Size
       KeyPairName:
-        default: Key pair name
+        default: Key Pair Name
       AMI:
-        default: SSM Parameter Value to grab the lastest AMI ID
-      DomainDNSName:
-        default: Domain FQDN DNS name
-      DomainNetBIOSName:
-        default: Domain NetBios name
-      DomainController1IP:
-        default: IP For Domain Controller that Offline Root (Only Used For Two Tier PKI) & Enterprise CA Instance will use for DNS
-      DomainController2IP:
-        default: IP For Domain Controller that Offline Root (Only Used For Two Tier PKI) & Enterprise Root or Subordinate CA Instance will use for DNS
-      AdministratorSecret:
-        default: The arn for the Secret containing the domain CA Install Credentials
+        default: SSM Parameter Value for lastest AMI ID
       DirectoryType:
-        default: Type of Active Directory CA(s) will be integrated with
+        default: Active Directory Domain Services Type
+      DomainDNSName:
+        default: Domain FQDN DNS Name
+      DomainNetBIOSName:
+        default: Domain NetBIOS Name
+      DomainController1IP:
+        default: IP the Instance will be used for DNS (Must be accessible)
+      DomainController2IP:
+        default: IP the Instance will be used for DNS (Must be accessible)
+      AdministratorSecret:
+        default: Secret ARN Containing CA Install Credentials
       CADeploymentType:
-        default: Do you want to Deploy Two Tier or One Tier PKI Infrastructure
+        default: CA Deployment Type
       OrCaServerNetBIOSName:
         default: Offline Root CA NetBIOS Name (Only Used For Two Tier PKI)
       EntCaServerNetBIOSName:
@@ -99,9 +99,9 @@ Metadata:
       CaValidityPeriodUnits:
         default: Enterprise Root or Subordinate CA Certificate Validity Period in Years
       UseS3ForCRL:
-        default: Use S3 for CA(s) CRL location
+        default: Use S3 for CA CRL Location
       S3CRLBucketName:
-        default: S3 bucket name for CA(s) CRL
+        default: CA CRL S3 Bucket Name
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3BucketRegion:
@@ -138,7 +138,7 @@ Parameters:
   OrCaDataDriveSizeGiB:
     Type: 'Number'
     Default: '2'
-    Description: Size of the Data Drive in GiB for Offline Root CA (Only Used For Two Tier PKI)
+    Description: Size of the Data Drive in GiB for the Offline Root CA (Only Used For Two Tier PKI)
   EntCaServerInstanceType:
     AllowedValues:
       - t2.small
@@ -153,14 +153,14 @@ Parameters:
   EntCaDataDriveSizeGiB:
     Type: 'Number'
     Default: '2'
-    Description: Size of the Data Drive in GiB for Enterprise Root or Subordinate CA
+    Description: Size of the Data Drive in GiB for the Enterprise Root or Subordinate CA
   KeyPairName:
     Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
     Description: CA(s) SSM Parameter Value to grab the lastest AMI ID
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
   DomainDNSName:
     AllowedPattern: '[a-zA-Z0-9\-]+\..+'
     Description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
@@ -175,17 +175,17 @@ Parameters:
     Type: String
   DomainController1IP:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP For Domain Controller that Offline Root (Only Used For Two Tier PKI) & Enterprise Root or Subordinate CA Instance will use for DNS
+    Description: IP of DNS server that can resolve domain (Must be accessible)
     Type: String
   DomainController2IP:
     AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP For Domain Controller that Offline Root (Only Used For Two Tier PKI) & Enterprise Root or Subordinate CA Instance will use for DNS
+    Description: IP of DNS server that can resolve domain (Must be accessible)
     Type: String
   AdministratorSecret:
-    Description: The arn for the Secret containing the CA Install Credentials
+    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
     Type: String
   DirectoryType:
-    Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
+    Description: Type of Active Directory the CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
     AllowedValues:
       - 'AWSManaged'
       - 'SelfManaged'
@@ -195,7 +195,7 @@ Parameters:
       - 'One-Tier'
       - 'Two-Tier'
     Default: 'Two-Tier'
-    Description: Do you want to Deploy Two Tier or One Tier PKI Infrastructure
+    Description: Deploy Two Tier (Offline Root with Subordinate Enterprise CA) or One Tier (Enterprise Root CA) PKI Infrastructure
     Type: String
   OrCaServerNetBIOSName:
     AllowedPattern: '[a-zA-Z0-9\-]+'
@@ -212,14 +212,14 @@ Parameters:
     Type: String
     Default: ENTCA1
   CaKeyLength:
-    Description: CA(s) Key Length
+    Description: CA(s) Cryptographic Provider Key Length
     AllowedValues:
       - '2048'
       - '4096'
     Default: '2048'
     Type: String
   CaHashAlgorithm:
-    Description: CA(s) Hash Algorithm
+    Description: CA(s) Hash Algorithm for Siging Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'
@@ -227,15 +227,15 @@ Parameters:
     Default: 'SHA256'
     Type: String
   OrCaValidityPeriodUnits:
-    Description: Offline Root CA Certificate Validity Period in Years (Only Used For Two Tier PKI)
+    Description: Validity Period in Years (Only Used For Two Tier PKI)
     Default: '10'
     Type: String
   CaValidityPeriodUnits:
-    Description: Enterprise Root or Subordinate CA Certificate Validity Period in Years
+    Description: Validity Period in Years
     Default: '5'
     Type: String
   UseS3ForCRL:
-    Description: Use S3 for CA(s) CRL location
+    Description: Store CA CRL(s) in an S3 bucket
     AllowedValues:
       - 'Yes'
       - 'No'
@@ -244,26 +244,23 @@ Parameters:
   S3CRLBucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     Default: examplebucket
-    Description: S3 bucket name for CA(s) CRL. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Description: S3 bucket name for CA CRL(s) storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: aws-quickstart
-    Description: Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Type: String
   QSS3BucketRegion:
-    Default: 'us-east-1'
-    Description: 'AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. Keep the default Region unless you are customizing the template. Changing this Region updates code references to point to a new Quick Start location. When using your own bucket, specify the Region. See https://aws-quickstart.github.io/option1.html.'
+    Default: us-east-1
+    Description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
-      uppercase letters, hyphens (-), and forward slash (/).
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)
     Default: quickstart-microsoft-pki/
-    Description: S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html and https://aws-quickstart.github.io/option1.html.
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)
     Type: String
 Rules:
   SubnetsInVPC:

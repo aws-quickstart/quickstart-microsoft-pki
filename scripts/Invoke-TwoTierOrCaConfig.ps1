@@ -7,7 +7,6 @@
     
     .EXAMPLE
     .\Invoke-TwoTierOrCaConfig -DomainDNSName 'example.com' -OrCaCommonName 'CA01' -OrCaKeyLength '2048' -OrCaHashAlgorithm 'SHA256' -OrCaValidityPeriodUnits '5' -$ADAdminSecParam 'arn:aws:secretsmanager:us-west-2:############:secret:example-VX5fcW' -UseS3ForCRL 'Yes' -S3CRLBucketName 'examplebucketname' -DirectoryType 'AWSManaged' -VPCCIDR '10.0.0.0/16' -SubCaServerNetBIOSName 'SUBCA01'
-
 #>
 
 [CmdletBinding()]
@@ -24,8 +23,20 @@ Param (
     [Parameter(Mandatory = $true)][String]$VPCCIDR,
     [Parameter(Mandatory = $true)][String]$SubCaServerNetBIOSName
 )
+#==================================================
+# Variables
+#==================================================
 
 $CompName = $env:COMPUTERNAME
+$Folders = @(
+    'D:\Pki\SubCA',
+    'D:\ADCS\DB',
+    'D:\ADCS\Log'
+)
+
+#==================================================
+# Main
+#==================================================
 
 Write-Output "Getting $ADAdminSecParam Secret"
 Try {
@@ -49,11 +60,6 @@ $AdminUserPW = ConvertTo-SecureString ($ADAdminPassword.Password) -AsPlainText -
 $Credentials = New-Object -TypeName 'System.Management.Automation.PSCredential' ("$DomainDNSName\$AdminUserName", $AdminUserPW)
 
 Write-Output 'Creating PKI folders'
-$Folders = @(
-    'D:\Pki\SubCA',
-    'D:\ADCS\DB',
-    'D:\ADCS\Log'
-)
 Foreach ($Folder in $Folders) {
     $PathPresent = Test-Path -Path $Folder
     If (-not $PathPresent) {
@@ -75,7 +81,14 @@ If ($UseS3ForCRL -eq 'No') {
         $URL = "URL=http://$SubCaServerNetBIOSName.$DomainDNSName/pki/cps.txt"
     }
 } Else {
-    $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value'
+    Write-Output 'Getting S3 bucket location'
+    Try {
+        $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value' -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to get S3 bucket location $_"
+        Exit 1
+    }
+
     If ($BucketRegion -eq ''){
         $S3BucketUrl = "$S3CRLBucketName.s3.amazonaws.com"
     } Else {
@@ -83,7 +96,13 @@ If ($UseS3ForCRL -eq 'No') {
     }
     $URL = "URL=http://$S3BucketUrl/$CompName/cps.txt"
 
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly
+    Write-Output 'Copying cps.txt to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy cps.txt to S3 bucket $_"
+        Exit 1
+    }
 }
 
 $Inf = @(
@@ -186,7 +205,13 @@ Try {
 }
 
 If ($UseS3ForCRL -eq 'Yes') {
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly
+    Write-Output 'Copying CRL to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy CRL to S3 bucket $_"
+        Exit 1
+    }
 }
 
 Write-Output 'Restarting CA service'
@@ -212,7 +237,12 @@ Try {
     Write-Output "Failed register Update CRL Scheduled Task $_"
 }
 
-Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction SilentlyContinue
+Write-Output 'Running CRL Scheduled Task'
+Try {
+    Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction Stop
+} Catch [System.Exception] {
+    Write-Output "Failed run CRL Scheduled Task $_"
+}
 
 Write-Output 'Restarting CA service'
 Try {

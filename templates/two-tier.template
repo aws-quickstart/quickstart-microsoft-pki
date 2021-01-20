@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: This template creates 2 Windows 2019 Server Active Directory Ceritificate Services
-  CAs 1 Offline Root CA and 1 Enterprise Subordinate CA into a private subnet inside a VPC. 
+Description: >-
+  This template creates 2 Windows 2019 Server Active Directory Ceritificate Services
+  CAs 1 Offline Root CA and 1 Enterprise Subordinate CA into a subnet inside a VPC. 
   **WARNING** This template creates Amazon EC2 Windows instance and related resources. 
   You will be billed for the AWS resources used if you create a stack from this template. (qs-1qup6rae5)
 Metadata:
@@ -23,16 +24,20 @@ Metadata:
           - SubCaDataDriveSizeGiB
           - KeyPairName
           - AMI
+      - Label:
+          default: Microsoft Active Directory Domain Services Configuration
+        Parameters:
+          - DirectoryType
+          - DomainDNSName
+          - DomainNetBIOSName
+          - DomainController1IP
+          - DomainController2IP
           - AdministratorSecret
       - Label:
           default: Microsoft Active Directory Certificate Services Configuration
         Parameters:
           - OrCaServerNetBIOSName
           - SubCaServerNetBIOSName
-          - DomainController1IP
-          - DomainController2IP
-          - DomainDNSName
-          - DomainNetBIOSName
           - OrCaKeyLength
           - OrCaHashAlgorithm
           - OrCaValidityPeriodUnits
@@ -41,7 +46,6 @@ Metadata:
           - SubCaValidityPeriodUnits
           - UseS3ForCRL
           - S3CRLBucketName
-          - DirectoryType
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -58,33 +62,35 @@ Metadata:
       SubCaServerSubnet:
         default: Subordinate CA Subnet ID
       DomainMembersSG:
-        default: Security Group ID for Domain Members Security Group.  
+      default: Domain Members Security Group ID
       OrCaServerInstanceType:
         default: Offline Root CA Instance Type
       OrCaDataDriveSizeGiB:
-        default: Size of the Data Drive in GiB
+        default: Offline Root CA Data Drive Size
       SubCaServerInstanceType:
         default: Subordinate CA Instance Type
       SubCaDataDriveSizeGiB:
-        default: Size of the Data Drive in GiB
+        default: Subordinate CA Data Drive Size
       KeyPairName:
-        default: Public/private key pairs allow you to securely connect to your instance
+        default: Key Pair Name
       AMI:
         default: AMI ID passed in from parent stack
+      DirectoryType:
+        default: Active Directory Domain Services Type
+      DomainDNSName:
+        default: Domain FQDN DNS Name
+      DomainNetBIOSName:
+        default: Domain NetBIOS Name
+      DomainController1IP:
+        default: IP the Instance will be used for DNS (Must be accessible)
+      DomainController2IP:
+        default: IP the Instance will be used for DNS (Must be accessible)
       AdministratorSecret:
-        default: The arn for the Secret containing the Administrator Credentials
+        default: Secret ARN Containing CA Install Credentials
       OrCaServerNetBIOSName:
         default: Offline Root CA NetBIOS Name
       SubCaServerNetBIOSName:
         default: Subordinate CA NetBIOS Name
-      DomainController1IP:
-        default: IP For Domain Controller that Offline Root & Subordinate CA Instance will use for DNS
-      DomainController2IP:
-        default: IP For Domain Controller that Offline Root & Subordinate CA Instance will use for DNS
-      DomainDNSName:
-        default: Domain DNS Name
-      DomainNetBIOSName:
-        default: Domain NetBIOS Name
       OrCaKeyLength:
         default: Offline Root CA Key Length
       OrCaHashAlgorithm:
@@ -98,11 +104,9 @@ Metadata:
       SubCaValidityPeriodUnits:
         default: Subordinate CA Certificate Validity Period in Years
       UseS3ForCRL:
-        default: Use S3 for Offline Root and Subordinate CA CRL location
+      default: Use S3 for CA CRL Location
       S3CRLBucketName:
-        default: S3 bucket name for Offline Root and Subordinate CA CRL
-      DirectoryType:
-        default: Type of Active Directory CA(s) will be integrated with
+      default: CA CRL S3 Bucket Name
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3KeyPrefix:
@@ -142,7 +146,7 @@ Parameters:
   OrCaDataDriveSizeGiB:
     Type: 'Number'
     Default: '2'
-    Description: Size of the Offline Root CA Data Drive in GiB
+    Description: Size of the Data Drive in GiB for the Offline Root CA
   SubCaServerInstanceType:
     AllowedValues:
       - t2.small
@@ -157,16 +161,42 @@ Parameters:
   SubCaDataDriveSizeGiB:
     Type: 'Number'
     Default: '2'
-    Description: Size of the Subordinate CA Data Drive in GiB
+    Description: Size of the Data Drive in GiB for the Subordinate CA
   KeyPairName:
-    Description: Public/private key pairs allow you to securely connect to your instance
-      after it launches
+    Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
     Type: String
-    Description: Offline Root CA SSM Parameter Value to grab the lastest AMI ID
+    Description: AMI ID passed in from parent stack
+  DirectoryType:
+    Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
+    AllowedValues:
+      - 'AWSManaged'
+      - 'SelfManaged'
+    Default: 'AWSManaged'
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Description: IP For Domain Controller that Offline Root & Subordinate CA Instances will use for DNS
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  DomainController1IP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Description: IP For Domain Controller that Offline Root & Subordinate CA Instances will use for DNS
+    Type: String
+  DomainController2IP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Description: IP For Domain Controller that Offline Root CA Instance will use for DNS
+    Type: String
   AdministratorSecret:
-    Description: The arn for the Secret containing the Administrator Credentials
+    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
     Type: String
   OrCaServerNetBIOSName:
     AllowedPattern: '[a-zA-Z0-9\-]+'
@@ -182,35 +212,15 @@ Parameters:
     MinLength: '1'
     Default: 'SUBCA1'
     Type: String
-  DomainController1IP:
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP For Domain Controller that Offline Root & Subordinate CA Instances will use for DNS
-    Type: String
-  DomainController2IP:
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP For Domain Controller that Offline Root CA Instance will use for DNS
-    Type: String
-  DomainDNSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
-    Description: IP For Domain Controller that Offline Root & Subordinate CA Instances will use for DNS
-    MaxLength: '255'
-    MinLength: '2'
-    Type: String
-  DomainNetBIOSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+'
-    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
-    MaxLength: '15'
-    MinLength: '1'
-    Type: String
   OrCaKeyLength:
-    Description: Offline Root CA Key Length
+    Description: Offline Root CA Cryptographic Provider Key Length
     AllowedValues:
       - '2048'
       - '4096'
     Default: '2048'
     Type: String
   OrCaHashAlgorithm:
-    Description: Offline Root CA Hash Algorithm
+    Description: Offline Root CA Hash Algorithm for Siging Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'
@@ -218,18 +228,18 @@ Parameters:
     Default: 'SHA256'
     Type: String
   OrCaValidityPeriodUnits:
-    Description: Offline Root CA Certificate Validity Period in Years
+    Description: Validity Period in Years
     Default: '10'
     Type: String
   SubCaKeyLength:
-    Description: SubordinateCA Key Length
+    Description: SubordinateCA Cryptographic Provider Key Length
     AllowedValues:
       - '2048'
       - '4096'
     Default: '2048'
     Type: String
   SubCaHashAlgorithm:
-    Description: Subordinate CA Hash Algorithm
+    Description: Subordinate CA Hash Algorithm for Siging Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'
@@ -237,11 +247,11 @@ Parameters:
     Default: 'SHA256'
     Type: String
   SubCaValidityPeriodUnits:
-    Description: Subordinate CA Certificate Validity Period in Years
+    Description: Validity Period in Years
     Default: '5'
     Type: String
   UseS3ForCRL:
-    Description: Use S3 for Offline Root and Subordinate CA CRL location
+    Description: Store CA CRLs in an S3 bucket
     AllowedValues:
       - 'Yes'
       - 'No'
@@ -250,37 +260,23 @@ Parameters:
   S3CRLBucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     Default: examplebucket
-    Description: S3 bucket name for Offline Root and Subordinate CA CRL. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
-    Type: String
-  DirectoryType:
-    Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
-    AllowedValues:
-      - 'AWSManaged'
-      - 'SelfManaged'
-    Default: 'AWSManaged'
+    Description: S3 bucket name for CA CRL storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: aws-quickstart
-    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name
-      can include numbers, lowercase letters, uppercase letters, and hyphens (-).
-      It cannot start or end with a hyphen (-).
+    Description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Type: String
   QSS3BucketRegion:
     Default: us-east-1
-    Description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.
+    Description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
-      uppercase letters, hyphens (-), and forward slash (/).
-    Default: quickstart-microsoft-activedirectory/
-    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
-      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
-      forward slash (/).
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)
+    Default: quickstart-microsoft-pki/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)
     Type: String
 Rules:
   SubnetsInVPC:
@@ -391,7 +387,7 @@ Resources:
       Content:
         schemaVersion: "0.3"
         description: "Deploy AD with SSM Automation"
-        # Gathering parameters needed to configure DCs in the Quick Start
+        # Gathering parameters needed to configure CAs in the Quick Start
         parameters: 
           VPCCIDR:
             default: '10.0.0.0/16'
@@ -454,7 +450,7 @@ Resources:
             description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
             type: "String"
           QSS3KeyPrefix:
-            default: "quickstart-microsoft-activedirectory/"
+            default: "quickstart-microsoft-pki/"
             description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
             type: "String"
           StackName:
@@ -761,6 +757,7 @@ Resources:
                       - !Ref AWS::Region
                       - !Ref QSS3BucketRegion
               commandLine: "./Invoke-TwoTierSubCaCertIssue.ps1 -DomainDNSName {{DomainDNSName}} -ADAdminSecParam {{AdministratorSecret}} -UseS3ForCRL {{UseS3ForCRL}} -DirectoryType {{DirectoryType}}"
+        # Finalizes and cleans up Subordinate CA configuration.
         - name: "TwoTierSubCaConfig"
           action: "aws:runCommand"
           onFailure: "step:signalfailure"

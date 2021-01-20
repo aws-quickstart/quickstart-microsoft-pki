@@ -7,7 +7,6 @@
     
     .EXAMPLE
     .\Invoke-TwoTierSubCaConfig -ADAdminSecParam 'arn:aws:secretsmanager:us-west-2:############:secret:example-VX5fcW' -UseS3ForCRL 'Yes' -S3CRLBucketName 'examplebucketname' -DirectoryType 'AWSManaged' -VPCCIDR '10.0.0.0/16'
-
 #>
 
 [CmdletBinding()]
@@ -19,6 +18,11 @@ Param (
     [Parameter(Mandatory = $true)][String]$VPCCIDR
 )
 
+#==================================================
+# Variables
+#==================================================
+
+Write-Output 'Getting AD domain'
 Try {
     $Domain = Get-ADDomain -ErrorAction Stop
 } Catch [System.Exception] {
@@ -26,13 +30,29 @@ Try {
     Exit 1
 }
 
-$DC = Get-ADDomainController -Discover -ForceDiscover | Select-Object -ExpandProperty 'HostName'
 $FQDN = $Domain | Select-Object -ExpandProperty 'DNSRoot'
 $Netbios = $Domain | Select-Object -ExpandProperty 'NetBIOSName'
 $CompName = $env:COMPUTERNAME
-$ADComputerName = Get-ADComputer -Identity $CompName | Select-Object -ExpandProperty 'DNSHostName'
-$CaConfig = "$ADComputerName\$env:COMPUTERNAME"
+$Templates = @(
+    'KerberosAuthentication',
+    'WebServer'
+)
+$SvolFolders = @(
+    'CertPkiSysvolPSDrive:\PkiSubCA',
+    'CertPkiSysvolPSDrive:\PkiRootCA'
+)
 
+#==================================================
+# Main
+#==================================================
+
+Write-Output "Finding a domain controller $_"
+Try {
+$DC = Get-ADDomainController -Discover -ForceDiscover | Select-Object -ExpandProperty 'HostName'
+} Catch [System.Exception] {
+    Write-Output "Failed to get domain controller $_"
+    Exit 1
+}
 
 Write-Output "Getting $ADAdminSecParam Secret"
 Try {
@@ -91,12 +111,20 @@ Try {
 }
 
 If ($UseS3ForCRL -eq 'Yes') {
-    $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value'
+    Write-Output 'Getting S3 bucket location'
+    Try {
+        $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value' -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to get S3 bucket location $_"
+        Exit 1
+    }
+
     If ($BucketRegion -eq ''){
         $S3BucketUrl = "$S3CRLBucketName.s3.amazonaws.com"
     } Else {
         $S3BucketUrl = "$S3CRLBucketName.s3-$BucketRegion.amazonaws.com"
     }
+
     $CDP = "http://$S3BucketUrl/$CompName/<CaName><CRLNameSuffix><DeltaCRLAllowed>.crl"
     $AIA = "http://$S3BucketUrl/$CompName/<ServerDNSName>_<CaName><CertificateName>.crt"
 } Else {
@@ -157,7 +185,13 @@ Try {
 }
 
 If ($UseS3ForCRL -eq 'Yes') {
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly
+    Write-Output 'Copying CRL to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy CRL to S3 bucket $_"
+        Exit 1
+    }
 }
 
 Write-Output 'Restarting CA service'
@@ -168,10 +202,6 @@ Try {
 }
 
 If ($DirectoryType -eq 'SelfManaged') {
-    $Templates = @(
-        'KerberosAuthentication',
-        'WebServer'
-    )
     Foreach ($Template in $Templates) {
         Write-Output "Publishing $Template template"
         $Counter = 0
@@ -197,12 +227,16 @@ If ($DirectoryType -eq 'SelfManaged') {
             }
         } Until ($TempPresent -or $Counter -eq 12)
     }
-}
-
-If ($DirectoryType -eq 'SelfManaged') {
     Write-Output 'Running Group Policy update'
     $BaseDn = $Domain.DistinguishedName
-    $DomainControllers = Get-ADComputer -SearchBase "OU=Domain Controllers,$BaseDn" -Filter * | Select-Object -ExpandProperty 'DNSHostName'
+
+    Write-Output 'Getting domain controllers'
+    Try {
+        $DomainControllers = Get-ADComputer -SearchBase "OU=Domain Controllers,$BaseDn" -Filter * | Select-Object -ExpandProperty 'DNSHostName'
+    } Catch [System.Exception] {
+        Write-Output "Failed to get domain controllers $_"
+    }
+
     Foreach ($DomainController in $DomainControllers) {
         Invoke-Command -ComputerName $DomainController -Credential $Credentials -ScriptBlock { Invoke-GPUpdate -RandomDelayInMinutes '0' -Force }
     }
@@ -224,8 +258,12 @@ Try {
     Write-Output "Failed register Update CRL Scheduled Task $_"
 }
 
-Write-Output 'Starting Update CRL Scheduled Task'
-Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction SilentlyContinue
+Write-Output 'Running CRL Scheduled Task'
+Try {
+    Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction Stop
+} Catch [System.Exception] {
+    Write-Output "Failed run CRL Scheduled Task $_"
+}
 
 Write-Output 'Restarting CA service'
 Try {
@@ -242,12 +280,6 @@ Try {
 }
  
 Write-Output 'Removing the PkiSubCA and PKIRootCA SYSVOL folders'
-
-$SvolFolders = @(
-    'CertPkiSysvolPSDrive:\PkiSubCA',
-    'CertPkiSysvolPSDrive:\PkiRootCA'
-)
-
 Foreach ($SvolFolder in $SvolFolders) {
     Try {
         Remove-Item -Path $SvolFolder -Recurse -Force -ErrorAction Stop

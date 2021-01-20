@@ -7,7 +7,6 @@
     
     .EXAMPLE
     .\Invoke-EnterpriseCaConfig -EntCaCommonName 'CA01' -EntCaKeyLength '2048' -EntCaHashAlgorithm 'SHA256' -EntCaValidityPeriodUnits '5' -ADAdminSecParam 'arn:aws:secretsmanager:us-west-2:############:secret:example-VX5fcW' -UseS3ForCRL 'Yes' -S3CRLBucketName 'examplebucketname' -DirectoryType 'AWSManaged' -VPCCIDR '10.0.0.0/16'
-
 #>
 
 [CmdletBinding()]
@@ -23,12 +22,39 @@ Param (
     [Parameter(Mandatory = $true)][String]$VPCCIDR
 )
 
+#==================================================
+# Variables
+#==================================================
+
+Write-Output 'Getting AD domain'
 Try {
     $Domain = Get-ADDomain -ErrorAction Stop
 } Catch [System.Exception] {
     Write-Output "Failed to get AD domain $_"
     Exit 1
 }
+
+$FQDN = $Domain | Select-Object -ExpandProperty 'DNSRoot'
+$Netbios = $Domain | Select-Object -ExpandProperty 'NetBIOSName'
+$CompName = $env:COMPUTERNAME
+$Folders = @(
+    'D:\Pki\Req',
+    'D:\ADCS\DB',
+    'D:\ADCS\Log'
+)
+$FilePath = 'D:\Pki'
+$Principals = @(
+    'ANONYMOUS LOGON',
+    'EVERYONE'
+)
+$Templates = @(
+    'KerberosAuthentication',
+    'WebServer'
+)
+
+#==================================================
+# Main
+#==================================================
 
 Write-Output 'Getting a Domain Controller to perform actions against'
 Try{
@@ -38,11 +64,7 @@ Try{
     Exit 1
 }
 
-$FQDN = $Domain | Select-Object -ExpandProperty 'DNSRoot'
-$Netbios = $Domain | Select-Object -ExpandProperty 'NetBIOSName'
-$CompName = $env:COMPUTERNAME
-
-# Getting Password from Secrets Manager for AD Admin User
+Write-Output "Getting $ADAdminSecParam Secret"
 Try {
     $AdminSecret = Get-SECSecretValue -SecretId $ADAdminSecParam -ErrorAction Stop | Select-Object -ExpandProperty 'SecretString'
 } Catch [System.Exception] {
@@ -50,6 +72,7 @@ Try {
     Exit 1
 }
 
+Write-Output 'Converting AdminSecret from JSON'
 Try {
     $ADAdminPassword = ConvertFrom-Json -InputObject $AdminSecret -ErrorAction Stop
 } Catch [System.Exception] {
@@ -57,7 +80,7 @@ Try {
     Exit 1
 }
 
-# Creating Credential Object for Administrator
+Write-Output 'Creating Credential Object for Administrator'
 $AdminUserName = $ADAdminPassword.UserName
 $AdminUserPW = ConvertTo-SecureString ($ADAdminPassword.Password) -AsPlainText -Force
 $Credentials = New-Object -TypeName 'System.Management.Automation.PSCredential' ("$Netbios\$AdminUserName", $AdminUserPW)
@@ -103,11 +126,6 @@ If ($UseS3ForCRL -eq 'No' -and $DirectoryType -eq 'SelfManaged') {
 }
 
 Write-Output 'Creating PKI folders'
-$Folders = @(
-    'D:\Pki\Req',
-    'D:\ADCS\DB',
-    'D:\ADCS\Log'
-)
 Foreach ($Folder in $Folders) {
     $PathPresent = Test-Path -Path $Folder -ErrorAction SilentlyContinue
     If (-not $PathPresent) {
@@ -161,13 +179,7 @@ If ($UseS3ForCRL -eq 'No') {
         Exit 1
     }
 
-    $Principals = @(
-        'ANONYMOUS LOGON',
-        'EVERYONE'
-    )
-
     Write-Output 'Setting PKI folder file system ACLs'
-    $FilePath = 'D:\Pki'
     Foreach ($Princ in $Principals) {
         $Principal = New-Object -TypeName 'System.Security.Principal.NTAccount'($Princ)
         $Perms = [System.Security.AccessControl.FileSystemRights]'Read, ReadAndExecute, ListDirectory'
@@ -203,7 +215,14 @@ If ($UseS3ForCRL -eq 'No') {
         $URL = "URL=http://$CompName.$FQDN/pki/cps.txt"
     }
 } Else {
-    $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value'
+    Write-Output 'Getting S3 bucket location'
+    Try {
+        $BucketRegion = Get-S3BucketLocation -BucketName $S3CRLBucketName | Select-Object -ExpandProperty 'Value' -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to get S3 bucket location $_"
+        Exit 1
+    }  
+
     If ($BucketRegion -eq ''){
         $S3BucketUrl = "$S3CRLBucketName.s3.amazonaws.com"
     } Else {
@@ -211,7 +230,14 @@ If ($UseS3ForCRL -eq 'No') {
     }
     $URL = "URL=http://$S3BucketUrl/$CompName/cps.txt"
 
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly
+
+    Write-Output 'Copying cps.txt to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'D:\Pki\' -KeyPrefix "$CompName\" -SearchPattern 'cps.txt' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy cps.txt to S3 bucket $_"
+        Exit 1
+    }
 }
 
 $Inf = @(
@@ -314,7 +340,13 @@ Try {
 }
 
 If ($UseS3ForCRL -eq 'Yes') {
-    Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly
+    Write-Output 'Copying CRL to S3 bucket'
+    Try {
+        Write-S3Object -BucketName $S3CRLBucketName -Folder 'C:\Windows\System32\CertSrv\CertEnroll\' -KeyPrefix "$CompName\" -SearchPattern '*.cr*' -PublicReadOnly -ErrorAction Stop
+    } Catch [System.Exception] {
+        Write-Output "Failed to copy CRL to S3 bucket $_"
+        Exit 1
+    }
 }
 
 Write-Output 'Restarting CA service'
@@ -325,10 +357,6 @@ Try {
 }
 
 If ($DirectoryType -eq 'SelfManaged') {
-    $Templates = @(
-        'KerberosAuthentication',
-        'WebServer'
-    )
     Foreach ($Template in $Templates) {
         Write-Output "Publishing $Template template"
         $Counter = 0
@@ -354,16 +382,20 @@ If ($DirectoryType -eq 'SelfManaged') {
             }
         } Until ($TempPresent -or $Counter -eq 12)
     }
-}
-
-If ($DirectoryType -eq 'SelfManaged') {
     Write-Output 'Running Group Policy update'
     $BaseDn = $Domain.DistinguishedName
-    $DomainControllers = Get-ADComputer -SearchBase "OU=Domain Controllers,$BaseDn" -Filter * | Select-Object -ExpandProperty 'DNSHostName'
+
+    Write-Output 'Getting domain controllers'
+    Try {
+        $DomainControllers = Get-ADComputer -SearchBase "OU=Domain Controllers,$BaseDn" -Filter * | Select-Object -ExpandProperty 'DNSHostName'
+    } Catch [System.Exception] {
+        Write-Output "Failed to get domain controllers $_"
+    }
+
     Foreach ($DomainController in $DomainControllers) {
         Invoke-Command -ComputerName $DomainController -Credential $Credentials -ScriptBlock { Invoke-GPUpdate -RandomDelayInMinutes '0' -Force }
     }
-} 
+}
 
 Write-Output 'Creating Update CRL Scheduled Task'
 Try {
@@ -381,7 +413,12 @@ Try {
     Write-Output "Failed register Update CRL Scheduled Task $_"
 }
 
-Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction SilentlyContinue
+Write-Output 'Running CRL Scheduled Task'
+Try {
+    Start-ScheduledTask -TaskName 'Update CRL' -ErrorAction Stop
+} Catch [System.Exception] {
+    Write-Output "Failed run CRL Scheduled Task $_"
+}
 
 Write-Output 'Restarting CA service'
 Try {
