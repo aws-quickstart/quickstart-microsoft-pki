@@ -53,7 +53,7 @@ Metadata:
       EntCaServerSubnet:
         default: Enterprise Root CA Subnet ID
       DomainMembersSG:
-      default: Domain Members Security Group ID
+        default: Domain Members Security Group ID
       EntCaServerInstanceType:
         default: Enterprise Root CA Instance Type
       EntCaDataDriveSizeGiB:
@@ -128,8 +128,9 @@ Parameters:
       after it launches
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
-    Type: String
     Description: AMI ID passed in from parent stack
+    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
   DirectoryType:
     Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
     AllowedValues:

@@ -160,7 +160,7 @@ Parameters:
   AMI:
     Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
     Description: CA(s) SSM Parameter Value to grab the lastest AMI ID
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Type: String
   DomainDNSName:
     AllowedPattern: '[a-zA-Z0-9\-]+\..+'
     Description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
