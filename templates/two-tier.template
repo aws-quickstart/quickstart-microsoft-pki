@@ -62,7 +62,7 @@ Metadata:
       SubCaServerSubnet:
         default: Subordinate CA Subnet ID
       DomainMembersSG:
-      default: Domain Members Security Group ID
+        default: Domain Members Security Group ID
       OrCaServerInstanceType:
         default: Offline Root CA Instance Type
       OrCaDataDriveSizeGiB:
@@ -104,9 +104,9 @@ Metadata:
       SubCaValidityPeriodUnits:
         default: Subordinate CA Certificate Validity Period in Years
       UseS3ForCRL:
-      default: Use S3 for CA CRL Location
+        default: Use S3 for CA CRL Location
       S3CRLBucketName:
-      default: CA CRL S3 Bucket Name
+        default: CA CRL S3 Bucket Name
       QSS3BucketName:
         default: Quick Start S3 Bucket Name
       QSS3KeyPrefix:
@@ -166,8 +166,9 @@ Parameters:
     Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
-    Type: String
     Description: AMI ID passed in from parent stack
+    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
   DirectoryType:
     Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
     AllowedValues:
