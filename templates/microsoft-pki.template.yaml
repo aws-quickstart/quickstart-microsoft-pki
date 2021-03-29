@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template creates a Microsoft one-tier or two-tie PKI infrastructure.
+  This template creates a Microsoft one-tier or two-tier PKI infrastructure.
   **WARNING** This template creates Amazon EC2 Windows instances and related resources. 
   You will be billed for the AWS resources used if you create a stack from this template. (qs-1qpclo7fi)
 Metadata:
@@ -71,7 +71,7 @@ Metadata:
       KeyPairName:
         default: Key Pair Name
       AMI:
-        default: SSM Parameter Value for lastest AMI ID
+        default: SSM Parameter Value for latest AMI ID
       DirectoryType:
         default: Active Directory Domain Services Type
       DomainDNSName:
@@ -79,9 +79,9 @@ Metadata:
       DomainNetBIOSName:
         default: Domain NetBIOS Name
       DomainController1IP:
-        default: IP the Instance will be used for DNS (Must be accessible)
+        default: IP used for DNS (Must be accessible)
       DomainController2IP:
-        default: IP the Instance will be used for DNS (Must be accessible)
+        default: IP used for DNS (Must be accessible)
       AdministratorSecret:
         default: Secret ARN Containing CA Install Credentials
       CADeploymentType:
@@ -159,7 +159,7 @@ Parameters:
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
     Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
-    Description: CA(s) SSM Parameter Value to grab the lastest AMI ID
+    Description: CA(s) SSM Parameter Value to grab the latest AMI ID
     Type: String
   DomainDNSName:
     AllowedPattern: '[a-zA-Z0-9\-]+\..+'
@@ -182,7 +182,7 @@ Parameters:
     Description: IP of DNS server that can resolve domain (Must be accessible)
     Type: String
   AdministratorSecret:
-    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
+    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins or AWS Delegated Enterprise Certificate Authority Administrators)
     Type: String
   DirectoryType:
     Description: Type of Active Directory the CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
@@ -219,7 +219,7 @@ Parameters:
     Default: '2048'
     Type: String
   CaHashAlgorithm:
-    Description: CA(s) Hash Algorithm for Siging Certificates
+    Description: CA(s) Hash Algorithm for Signing Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'

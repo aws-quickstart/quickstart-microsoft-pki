@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template creates 1 Windows 2019 Server Active Directory Ceritificate Services
-  Enterpsie CA into a subnet inside a VPC. **WARNING** This template creates Amazon
+  This template creates 1 Windows 2019 Server Active Directory Certificate Services
+  Enterprise CA into a subnet inside a VPC. **WARNING** This template creates Amazon
   EC2 Windows instance and related resources. You will be billed for the AWS resources
   used if you create a stack from this template. (qs-1qup6rae5)
 Metadata:
@@ -69,9 +69,9 @@ Metadata:
       DomainNetBIOSName:
         default: Domain NetBIOS Name
       DomainController1IP:
-        default: IP the Instance will be use for DNS (Must be accessible)
+        default: IP used for DNS (Must be accessible)
       DomainController2IP:
-        default: IP the Instance will be use for DNS (Must be accessible)
+        default: IP used for DNS (Must be accessible)
       AdministratorSecret:
         default: Secret ARN Containing CA Install Credentials
       EntCaServerNetBIOSName:
@@ -132,7 +132,7 @@ Parameters:
     Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
   DirectoryType:
-    Description: Type of Active Directory CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
+    Description: Type of Active Directory Enterprise Root CA will be integrated with, AWS Managed Microsoft AD or Self Managed AD
     AllowedValues:
       - 'AWSManaged'
       - 'SelfManaged'
@@ -159,7 +159,7 @@ Parameters:
     Description: IP of DNS server that can resolve domain (Must be accessible)
     Type: String
   AdministratorSecret:
-    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
+    Description: ARN for the Enterprise Root CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
     Type: String
   EntCaServerNetBIOSName:
     AllowedPattern: '[a-zA-Z0-9\-]+'
@@ -176,7 +176,7 @@ Parameters:
     Default: '2048'
     Type: String
   EntCaHashAlgorithm:
-    Description: Enterprise Root CA Hash Algorithm for Siging Certificates
+    Description: Enterprise Root CA Hash Algorithm for Signing Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'
@@ -188,7 +188,7 @@ Parameters:
     Default: '5'
     Type: String
   UseS3ForCRL:
-    Description: Store CA CRL(s) in an S3 bucket
+    Description: Store Enterprise Root CA CRL in an S3 bucket
     AllowedValues:
       - 'Yes'
       - 'No'
@@ -197,7 +197,7 @@ Parameters:
   S3CRLBucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
     Default: examplebucket
-    Description: S3 bucket name for CA CRL storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
+    Description: S3 bucket name for Enterprise Root CA CRL storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
@@ -590,6 +590,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref 'EntCaServerNetBIOSName'
+        - Key: Domain
+          Value: !Ref 'DomainDNSName'
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
@@ -670,6 +672,9 @@ Resources:
           FromPort: 49152
           ToPort: 65535
           CidrIp: !Ref VPCCIDR
+      Tags:
+        - Key: Name
+          Value: CertificateAuthoritySecurityGroup
 Outputs:
   EnterpiseCASGID:
     Value: !Ref 'CaSG'
