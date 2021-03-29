@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template deploys a Microsoft one-tier or two-tier PKI infrastructure deploying VPC, Active 
+  This template deploys a Microsoft one-tier or two-tier PKI infrastructure deploying a VPC, Active 
   Directory, and PKI CloudFormation stacks. **WARNING** This template creates Amazon 
   EC2 Windows instances and related resources. You will be billed for the AWS 
   resources used if you create a stack from this template. (qs-1qtre0g7j)
@@ -19,7 +19,7 @@ Metadata:
           - PublicSubnet1CIDR
           - PublicSubnet2CIDR
       - Label:
-          default: Amazon EC2 configuration
+          default: Amazon EC2 Configuration
         Parameters:
           - KeyPairName
       - Label:
@@ -165,7 +165,6 @@ Parameters:
     AllowedPattern: '[a-zA-Z0-9]+'
     Default: example
     Description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
-      versions of Windows.
     MaxLength: '15'
     MinLength: '1'
     Type: String
@@ -245,7 +244,7 @@ Parameters:
     Default: '2048'
     Type: String
   CaHashAlgorithm:
-    Description: CA Hash Algorithm for Siging Certificates
+    Description: CA Hash Algorithm for Signing Certificates
     AllowedValues:
       - 'SHA256'
       - 'SHA384'
