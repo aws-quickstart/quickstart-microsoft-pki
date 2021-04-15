@@ -5,8 +5,6 @@ Description: >-
   EC2 Windows instances and related resources. You will be billed for the AWS 
   resources used if you create a stack from this template. (qs-1qtre0g7j)
 Metadata:
-  QuickStartDocumentation:
-    EntrypointName: "Parameters for deploying into a new VPC"
   AWS::CloudFormation::Interface:
     ParameterGroups:
       - Label:
