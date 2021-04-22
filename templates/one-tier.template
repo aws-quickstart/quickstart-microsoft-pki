@@ -322,35 +322,34 @@ Resources:
     Properties:
       DocumentType: Automation
       Content:
-        schemaVersion: "0.3"
-        description: "Deploy AD with SSM Automation"
-        # Gathering parameters needed to configure CA in the Quick Start
+        schemaVersion: '0.3'
+        description: Deploy Single Tier PKI with SSM Automation
         parameters: 
           VPCCIDR:
-            default: '10.0.0.0/16'
+            default: 10.0.0.0/16
             description: "CIDR Block for the VPC"
-            type: "String"
+            type: String
           DirectoryType:
             description: Type of Active Directory CA will be integrated with
             type: String 
           DomainDNSName: 
-            description: "Fully qualified domain name (FQDN) of the forest root domain e.g. example.com"
-            type: "String"
+            description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
+            type: String
           DomainNetBIOSName: 
-            description: "NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE"
-            type: "String"
+            description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
+            type: String
           DomainController1IP:
-            description: "IP of DNS server that can resolve domain (Must be accessible)"
-            type: "String"
+            description: IP of DNS server that can resolve domain (Must be accessible)
+            type: String
           DomainController2IP:
-            description: "IP of DNS server that can resolve domain (Must be accessible)"
-            type: "String"
+            description: IP of DNS server that can resolve domain (Must be accessible)
+            type: String
           AdministratorSecret:
-            description: "ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)"
-            type: "String"
+            description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
+            type: String
           EntCaServerNetBIOSName:
-            description: "NetBIOS name of the Enterprise Root or Subordinate CA server (up to 15 characters)"
-            type: "String"
+            description: NetBIOS name of the Enterprise Root or Subordinate CA server (up to 15 characters)
+            type: String
           EntCaKeyLength:
             description: Enterprise Root CA Cryptographic Provider Key Length
             type: String
@@ -367,215 +366,240 @@ Resources:
             description: S3 bucket name for CA CRL storage.
             type: String
           QSS3BucketName:
-            default: "aws-quickstart"
-            description: "S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)."
-            type: "String"
+            default: aws-quickstart
+            description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+            type: String
           QSS3BucketRegion:
-            default: "us-east-1"
-            description: "The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value."
-            type: "String"
+            default: us-east-1
+            description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.
+            type: String
           QSS3KeyPrefix:
-            default: "quickstart-microsoft-pki/"
-            description: "S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)."
-            type: "String"
+            default: quickstart-microsoft-pki/
+            description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
+            type: String
           StackName:
-            default: ""
-            description: "Stack Name Input for cfn resource signal"
-            type: "String"
+            default: ''
+            description: Stack Name Input for cfn resource signal
+            type: String
           URLSuffix:
-            default: "amazonaws.com"
-            description: "AWS URL suffix"
-            type: "String"
+            default: amazonaws.com
+            description: AWS URL suffix
+            type: String
         mainSteps:
-        # This step grabs the Instance ID for the node that will be configured as Enterpise CA in the Quick Start and Instance ID for the for next steps.
-        - name: "entCAInstanceId"
+        - name: entCAInstanceId
           action: aws:executeAwsApi
-          onFailure: "step:signalfailure"
-          nextStep: "InstallDscModules"
+          onFailure: step:signalfailure
           inputs:
             Service: ec2
             Api: DescribeInstances
             Filters:  
-            - Name: "tag:Name"
-              Values: [ "{{EntCaServerNetBIOSName}}" ]
-            - Name: "tag:aws:cloudformation:stack-name"
-              Values: ["{{StackName}}"]
-            - Name: "instance-state-name"
-              Values: [ "running" ]
+            - Name: tag:Name
+              Values: ['{{EntCaServerNetBIOSName}}']
+            - Name: tag:aws:cloudformation:stack-name
+              Values: ['{{StackName}}']
+            - Name: instance-state-name
+              Values: [running]
           outputs:
           - Name: InstanceId
-            Selector: "$.Reservations[0].Instances[0].InstanceId"
-            Type: "String"
-        # Installs needed Powershell DSC Modules and components.
-        - name: "InstallDscModules"
-          action: "aws:runCommand"
-          onFailure: "step:signalfailure"
-          nextStep: "LCMConfig"
-          inputs:
-            DocumentName: "AWS-RunRemoteScript"
-            InstanceIds:
-            - "{{entCAInstanceId.InstanceId}}"
-            CloudWatchOutputConfig:
-              CloudWatchOutputEnabled: "true"
-              CloudWatchLogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
-            Parameters:
-              sourceType: "S3"
-              sourceInfo: 
-                !Sub 
-                  - '{"path": "https://${S3Bucket}.s3.${S3Region}.{{URLSuffix}}/{{QSS3KeyPrefix}}scripts/Initialize-Instance.ps1"}'
-                  - S3Bucket: !If
-                      - UsingDefaultBucket
-                      - !Sub '${QSS3BucketName}-${AWS::Region}'
-                      - !Ref QSS3BucketName
-                    S3Region: !If 
-                      - UsingDefaultBucket
-                      - !Ref AWS::Region
-                      - !Ref QSS3BucketRegion
-              commandLine: "./Initialize-Instance.ps1"
-        # Configures Local Configuration Manager on the node.
-        - name: "LCMConfig"
-          action: "aws:runCommand"
-          onFailure: "step:signalfailure"
-          nextStep: "createEntCAMof"
-          inputs:
-            DocumentName: "AWS-RunRemoteScript"
-            InstanceIds:
-            - "{{entCAInstanceId.InstanceId}}"
-            CloudWatchOutputConfig:
-              CloudWatchOutputEnabled: "true"
-              CloudWatchLogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
-            Parameters:
-              sourceType: "S3"
-              sourceInfo: 
-                !Sub 
-                  - '{"path": "https://${S3Bucket}.s3.${S3Region}.{{URLSuffix}}/{{QSS3KeyPrefix}}scripts/Set-LCMConfig.ps1"}'
-                  - S3Bucket: !If
-                      - UsingDefaultBucket
-                      - !Sub '${QSS3BucketName}-${AWS::Region}'
-                      - !Ref QSS3BucketName
-                    S3Region: !If 
-                      - UsingDefaultBucket
-                      - !Ref AWS::Region
-                      - !Ref QSS3BucketRegion
-              commandLine: "./Set-LCMConfig.ps1"
-        # Generates MOF file on second DC Node to be processed by LCM.
-        - name: "createEntCAMof"
-          action: "aws:runCommand"
-          onFailure: "step:signalfailure"
-          nextStep: "configEntCA"
-          inputs:
-            DocumentName: "AWS-RunRemoteScript"
-            InstanceIds:
-            - "{{entCAInstanceId.InstanceId}}"
-            CloudWatchOutputConfig:
-              CloudWatchOutputEnabled: "true"
-              CloudWatchLogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
-            Parameters:
-              sourceType: "S3"
-              sourceInfo: 
-                !Sub
-                  - '{"path": "https://${S3Bucket}.s3.${S3Region}.{{URLSuffix}}/{{QSS3KeyPrefix}}scripts/Invoke-EnterpriseCaPreConfig.ps1"}'
-                  - S3Bucket: !If
-                      - UsingDefaultBucket
-                      - !Sub '${QSS3BucketName}-${AWS::Region}'
-                      - !Ref QSS3BucketName
-                    S3Region: !If 
-                      - UsingDefaultBucket
-                      - !Ref AWS::Region
-                      - !Ref QSS3BucketRegion
-              commandLine: "./Invoke-EnterpriseCaPreConfig.ps1  -EntCaNetBIOSName {{EntCaServerNetBIOSName}} -DomainNetBIOSName {{DomainNetBIOSName}} -DomainDNSName {{DomainDNSName}} -DomainController1IP {{DomainController1IP}} -DomainController2IP {{DomainController2IP}} -ADAdminSecParam {{AdministratorSecret}} -UseS3ForCRL {{UseS3ForCRL}}"
-        # Kicks off DSC Configuration and loops\reboots until Node matches Configuration defined in MOF file.
-        - name: "configEntCA"
+            Selector: $.Reservations[0].Instances[0].InstanceId
+            Type: String
+          nextStep: intializeInstance
+        - name: intializeInstance
           action: aws:runCommand
-          onFailure: "step:signalfailure"
-          nextStep: "finalConfigEntCA"
           inputs:
             DocumentName: AWS-RunPowerShellScript
-            InstanceIds: 
-              - "{{entCAInstanceId.InstanceId}}"
-            CloudWatchOutputConfig:
-              CloudWatchOutputEnabled: "true"
-              CloudWatchLogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
-            Parameters:
-              commands: 
-                - |     
-                   function DscStatusCheck () {
-                       $LCMState = (Get-DscLocalConfigurationManager).LCMState
-                       if ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
-                           'returning 3010, should continue after reboot'
-                           exit 3010
-                       } else {
-                           'Completed'
-                       }
-                   }
-                   
-                   Start-DscConfiguration 'C:\AWSQuickstart\ConfigEntCa' -Wait -Verbose -Force
-                   
-                   DscStatusCheck
-        # Perform final configuration on the CA instance
-        - name: "finalConfigEntCA"
-          action: "aws:runCommand"
-          onFailure: "step:signalfailure"
-          inputs:
-            DocumentName: "AWS-RunRemoteScript"
             InstanceIds:
-              - "{{entCAInstanceId.InstanceId}}"
-            CloudWatchOutputConfig:
-              CloudWatchOutputEnabled: "true"
-              CloudWatchLogGroupName: !Sub '/aws/Quick_Start/${AWS::StackName}'
+              - '{{entCAInstanceId.InstanceId}}'
             Parameters:
-              sourceType: S3
-              sourceInfo: 
-                !Sub 
-                  - '{"path": "https://${S3Bucket}.s3.${S3Region}.{{URLSuffix}}/{{QSS3KeyPrefix}}scripts/Invoke-EnterpriseCaConfig.ps1"}'
-                  - S3Bucket: !If
-                      - UsingDefaultBucket
-                      - !Sub '${QSS3BucketName}-${AWS::Region}'
-                      - !Ref QSS3BucketName
-                    S3Region: !If 
-                      - UsingDefaultBucket
-                      - !Ref AWS::Region
-                      - !Ref QSS3BucketRegion
-              commandLine: "./Invoke-EnterpriseCaConfig.ps1 -EntCaCommonName {{EntCaServerNetBIOSName}} -EntCaKeyLength {{EntCaKeyLength}} -EntCaHashAlgorithm {{EntCaHashAlgorithm}} -EntCaValidityPeriodUnits {{EntCaValidityPeriodUnits}} -ADAdminSecParam {{AdministratorSecret}} -UseS3ForCRL {{UseS3ForCRL}} -S3CRLBucketName {{S3CRLBucketName}} -DirectoryType {{DirectoryType}} -VPCCIDR {{VPCCIDR}}"
-        # Determines if CFN Needs to be Signaled or if Work flow should just end
+              commands: |-
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+                $S3BucketName = '{{QSS3BucketName}}'
+                $S3KeyPrefix = '{{QSS3KeyPrefix}}'
+
+
+                $CustomModules = @(
+                    'Module-Pki.psd1',
+                    'Module-Pki.psm1'
+                )
+
+                $Modules = @(
+                    @{
+                        Name    = 'NetworkingDsc'
+                        Version = '8.2.0'
+                    },
+                    @{
+                        Name    = 'ComputerManagementDsc'
+                        Version = '8.4.0'
+                    }
+                )
+
+                Write-Output 'Creating AWSQuickstart Directory'
+                Try {
+                    $Null = New-Item -Path 'C:\AWSQuickstart\Module-Pki' -ItemType 'Directory' -ErrorAction Stop
+                } Catch [System.Exception] {
+                    Write-Output "Failed to create AWSQuickstart directory $_"
+                    Exit 1
+                }
+
+                $S3KeyPrefix = $S3KeyPrefix.Substring(0,$S3KeyPrefix.Length -1)
+                Write-Output 'Downloading Pki PowerShell Module'
+                Foreach ($CustomModule in $CustomModules) {
+                    Try {
+                        $Null = Read-S3Object -BucketName $S3BucketName -Key "$($S3KeyPrefix)/scripts/Modules/Module-Pki/$CustomModule" -File "C:\AWSQuickstart\Module-Pki\$CustomModule"
+                    } Catch [System.Exception] {
+                        Write-Output "Failed to read and download $CustomModule.Name from S3 $_"
+                        Exit 1
+                    }
+                }
+
+                Write-Output 'Installing NuGet Package Provider'
+                Try {
+                    $Null = Install-PackageProvider -Name 'NuGet' -MinimumVersion '2.8.5' -Force -ErrorAction Stop
+                } Catch [System.Exception] {
+                    Write-Output "Failed to install NuGet Package Provider $_"
+                    Exit 1
+                }
+
+                Write-Output 'Setting PSGallery Respository to trusted'
+                Try {
+                    Set-PSRepository -Name 'PSGallery' -InstallationPolicy 'Trusted' -ErrorAction Stop
+                } Catch [System.Exception] {
+                    Write-Output "Failed to set PSGallery Respository to trusted $_"
+                    Exit 1
+                }
+
+                Write-Output 'Installing the needed Powershell DSC modules for this Quick Start'
+                Foreach ($Module in $Modules) {
+                    Try {
+                        Install-Module -Name $Module.Name -RequiredVersion $Module.Version -ErrorAction Stop
+                    } Catch [System.Exception] {
+                        Write-Output "Failed to Import Modules $_"
+                        Exit 1
+                    }
+                } 
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: true
+              CloudWatchLogGroupName: !Sub /aws/Quick_Start/${AWS::StackName}
+          nextStep: configureInstance
+        - name: configureInstance
+          action: aws:runCommand
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+              - '{{entCAInstanceId.InstanceId}}'
+            Parameters:
+              commands: |-
+                Try {
+                    Import-Module -Name 'C:\AWSQuickstart\Module-Pki\Module-Pki.psm1' -Force
+                } Catch [System.Exception] {
+                    Write-Output "Failed to import Pki PS Module $_"
+                    Exit 1
+                }
+                New-VolumeFromRawDisk
+                Invoke-PreConfig
+                Invoke-LcmConfig
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: true
+              CloudWatchLogGroupName: !Sub /aws/Quick_Start/${AWS::StackName}
+          nextStep: configureMof
+        - name: configureMof
+          action: aws:runCommand
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+              - '{{entCAInstanceId.InstanceId}}'
+            Parameters:
+              commands: |-
+                Try {
+                    Import-Module -Name 'C:\AWSQuickstart\Module-Pki\Module-Pki.psm1' -Force
+                } Catch [System.Exception] {
+                    Write-Output "Failed to import Pki PS Module $_"
+                    Exit 1
+                }
+                $EniConfig = Get-EniConfig
+                $Secret = Get-SecretInfo -Domain '{{DomainNetBIOSName}}' -SecretArn '{{AdministratorSecret}}'
+                Set-DscConfiguration -CaType Enterprise -Credentials $Secret.Credentials -DomainController1IP '{{DomainController1IP}}' -DomainController2IP '{{DomainController2IP}}' -DomainDNSName '{{DomainDNSName}}' -GatewayAddress $EniConfig.GatewayAddress -InstanceNetBIOSName '{{EntCaServerNetBIOSName}}' -IpAddress $EniConfig.IpAddress -MacAddress $EniConfig.MacAddress -UseS3ForCRL '{{UseS3ForCRL}}'
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: true
+              CloudWatchLogGroupName: !Sub /aws/Quick_Start/${AWS::StackName}
+          nextStep: runMof
+        - name: runMof
+          action: aws:runCommand
+          onFailure: step:signalfailure
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+              - '{{entCAInstanceId.InstanceId}}'
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: true
+              CloudWatchLogGroupName: !Sub /aws/Quick_Start/${AWS::StackName}
+            Parameters:
+              commands: |-
+                Try {
+                    Import-Module -Name 'C:\AWSQuickstart\Module-Pki\Module-Pki.psm1' -Force
+                } Catch [System.Exception] {
+                    Write-Output "Failed to import Pki PS Module $_"
+                    Exit 1
+                }
+                Start-DscConfiguration 'C:\AWSQuickstart\ConfigInstance' -Wait -Verbose -Force
+                Invoke-DscStatusCheck
+          nextStep: InstallEntCa
+        - name: InstallEntCa
+          action: aws:runCommand
+          inputs:
+            DocumentName: AWS-RunPowerShellScript
+            InstanceIds:
+              - '{{entCAInstanceId.InstanceId}}'
+            CloudWatchOutputConfig:
+              CloudWatchOutputEnabled: true
+              CloudWatchLogGroupName: !Sub /aws/Quick_Start/${AWS::StackName}
+            Parameters:
+              commands: |-
+                Try {
+                    Import-Module -Name 'C:\AWSQuickstart\Module-Pki\Module-Pki.psm1' -Force
+                } Catch [System.Exception] {
+                    Write-Output "Failed to import Pki PS Module $_"
+                    Exit 1
+                }
+                $Secret = Get-SecretInfo -Domain '{{DomainNetBIOSName}}' -SecretArn '{{AdministratorSecret}}'
+                Invoke-EnterpriseCaConfig -Credentials $Secret.Credentials -DirectoryType '{{DirectoryType}}' -EntCaCommonName '{{EntCaServerNetBIOSName}}' -EntCaHashAlgorithm '{{EntCaHashAlgorithm}}' -EntCaKeyLength '{{EntCaKeyLength}}' -EntCaValidityPeriodUnits '{{EntCaValidityPeriodUnits}}' -S3CRLBucketName '{{S3CRLBucketName}}' -UseS3ForCRL '{{UseS3ForCRL}}'
+                Invoke-Cleanup -VPCCIDR '{{VPCCIDR}}'
         - name: CFNSignalEnd
           action: aws:branch
           inputs:
             Choices:
             - NextStep: signalsuccess
               Not: 
-                Variable: "{{StackName}}"
-                StringEquals: ""
+                Variable: '{{StackName}}'
+                StringEquals: ''
             - NextStep: sleepend
-              Variable: "{{StackName}}"
-              StringEquals: ""
-        # If all steps complete successfully signals CFN of Success
-        - name: "signalsuccess"
-          action: "aws:executeAwsApi"
+              Variable: '{{StackName}}'
+              StringEquals: ''
+        - name: signalsuccess
+          action: aws:executeAwsApi
           isEnd: True
           inputs:
             Service: cloudformation
             Api: SignalResource
-            LogicalResourceId: "EntRootCA"
-            StackName: "{{StackName}}"
+            LogicalResourceId: EntRootCA
+            StackName: '{{StackName}}'
             Status: SUCCESS
-            UniqueId: "{{entCAInstanceId.InstanceId}}"
-        # If CFN Signl Not Needed this sleep ends work flow
-        - name: "sleepend"
-          action: "aws:sleep"
+            UniqueId: '{{entCAInstanceId.InstanceId}}'
+        - name: sleepend
+          action: aws:sleep
           isEnd: True
           inputs:
             Duration: PT1S
-        # If any steps fails signals CFN of Failure
-        - name: "signalfailure"
-          action: "aws:executeAwsApi"
+        - name: signalfailure
+          action: aws:executeAwsApi
           inputs:
             Service: cloudformation
             Api: SignalResource
-            LogicalResourceId: "EntRootCA"
-            StackName: "{{StackName}}"
+            LogicalResourceId: EntRootCA
+            StackName: '{{StackName}}'
             Status: FAILURE
-            UniqueId: "{{entCAInstanceId.InstanceId}}"
+            UniqueId: '{{entCAInstanceId.InstanceId}}'
   EntRootCA:
     Type: AWS::EC2::Instance
     CreationPolicy:
