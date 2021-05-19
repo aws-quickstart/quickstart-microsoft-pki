@@ -306,29 +306,56 @@ Resources:
         - PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Action:
-                  - s3:ListBucket
-                Resource: 
-                  - !Sub ['arn:${AWS::Partition}:s3:::${S3Bucket}', S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]]
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !Sub arn:aws:s3:::aws-ssm-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::aws-windows-downloads-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::amazon-ssm-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::amazon-ssm-packages-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::${AWS::Region}-birdwatcher-prod/*
+                  - !Sub arn:aws:s3:::patch-baseline-snapshot-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::aws-ssm-distributor-file-${AWS::Region}/*
+                  - !Sub arn:aws:s3:::aws-ssm-document-attachments-${AWS::Region}/*
+          PolicyName: SSMAgent
+        - PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub
+                  - 'arn:${AWS::Partition}:s3:::${S3Bucket}'
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub
+                  - 'arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*'
+                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+              - Effect: Allow
+                Action: ssm:StartAutomationExecution
+                Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:automation-definition/${AWSQuickstartCA}:$DEFAULT
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource:
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:*:document/AWS-RunRemoteScript
+                  - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:*:document/AWS-RunPowerShellScript
+              - Effect: Allow
+                Action: ssm:SendCommand
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+                Condition:
+                  StringEquals:
+                    'ssm:ResourceTag/aws:cloudformation:stack-name': !Ref AWS::StackName
+              - Sid: ReadOperations
                 Effect: Allow
-              - Action:
-                  - s3:GetObject
-                Resource: 
-                  - !Sub ['arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*', S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]]
-                Effect: Allow
-              - Action:
+                Action:
                   - ec2:DescribeInstances
                   - ssm:DescribeInstanceInformation
                   - ssm:ListCommands
                   - ssm:ListCommandInvocations
-                  - ssm:SendCommand
-                  - ssm:StartAutomationExecution
                 Resource: '*'
-                Effect: Allow
-              - Action:
-                  - cloudformation:SignalResource
+              - Effect: Allow
+                Action: cloudformation:SignalResource
                 Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
-                Effect: Allow
           PolicyName: AWS-Mgmt-Quick-Start-Policy
         - PolicyDocument:
             Version: '2012-10-17'
@@ -337,7 +364,7 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
-                Resource: 
+                Resource:
                   - !Ref 'AdministratorSecret'
           PolicyName: AWS-Mgd-AD-Secret-Policy
       Path: /
