@@ -350,7 +350,6 @@ Resources:
         VPCCIDR: !Ref 'VPCCIDR'
   ADStack:
     Type: AWS::CloudFormation::Stack
-    DependsOn: VPCStack
     Properties:
       TemplateURL:
         !Sub
@@ -368,11 +367,10 @@ Resources:
         PrivateSubnet2ID: !GetAtt 'VPCStack.Outputs.PrivateSubnet2AID'
         QSS3BucketName: !Ref 'QSS3BucketName'
         QSS3BucketRegion: !Ref 'QSS3BucketRegion'
-        QSS3KeyPrefix: !Sub 'quickstart-microsoft-activedirectory/'
+        QSS3KeyPrefix: !Sub '${QSS3KeyPrefix}submodules/quickstart-microsoft-sql/'
         VPCCIDR: !GetAtt 'VPCStack.Outputs.VPCCIDR'
         VPCID: !GetAtt 'VPCStack.Outputs.VPCID'
   RDGWStack:
-    DependsOn: ADStack
     Condition: IncludeRDGW
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -398,7 +396,6 @@ Resources:
         RDGWCIDR: !Ref 'RDGWCIDR'
         VPCID: !GetAtt 'VPCStack.Outputs.VPCID'
   PKIStack:
-    DependsOn: ADStack
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL:

@@ -280,7 +280,6 @@ Rules:
         Assert: !Not [!Equals [!Ref S3CRLBucketName, 'examplebucket']]
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
-  UsingS3BucketForCrl: !Equals [!Ref UseS3ForCRL, 'Yes']
   ShouldCreateOneTierPkiResource: !Equals [!Ref CADeploymentType, 'One-Tier']
   ShouldCreateTwoTierPkiResource: !Equals [!Ref CADeploymentType, 'Two-Tier']
 Resources:
