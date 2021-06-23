@@ -531,10 +531,13 @@ Function Invoke-EnterpriseCaConfig {
                 $Counter ++
                 Write-Output 'CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
-                If ($DirectoryType -eq 'SelfManaged') {
-                    Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
-                } Else {
-                    Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                Switch ($DirectoryType) {
+                    'SelfManaged' {
+                        Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                    }
+                    'AWSManaged' {
+                        Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                    }
                 }
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
@@ -1244,10 +1247,13 @@ Function Invoke-TwoTierSubCaInstall {
                 $Counter ++
                 Write-Output 'CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
-                If ($DirectoryType -eq 'SelfManaged') {
-                    Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
-                } Else {
-                    Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                Switch ($DirectoryType) {
+                    'SelfManaged' {
+                        Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                    }
+                    'AWSManaged' {
+                        Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                    }
                 }
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
