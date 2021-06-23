@@ -499,7 +499,7 @@ Function Invoke-EnterpriseCaConfig {
         Exit 1
     }
 
-    If ($UseS3ForCRL -eq 'No' -and $DirectoryType -eq 'SelfManaged') {
+    If ($UseS3ForCRL -eq 'No') {
         $Counter = 0
         Do {
             $ARecordPresent = Resolve-DnsName -Name "$CompName.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
@@ -518,6 +518,11 @@ Function Invoke-EnterpriseCaConfig {
             Exit 1
         }
 
+        If ($DirectoryType -eq 'AWSManaged') {
+            Write-Output 'Enabling CredSSP'
+            Set-CredSSP -Action 'Enable'
+        }
+
         Write-Output 'Creating PKI CNAME record'
         $Counter = 0
         Do {
@@ -526,13 +531,20 @@ Function Invoke-EnterpriseCaConfig {
                 $Counter ++
                 Write-Output 'CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
-                Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                If ($DirectoryType -eq 'SelfManaged') {
+                    Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                } Else {
+                    Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                }
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
                 }
             }
         } Until ($CnameRecordPresent -or $Counter -eq 12)
 
+        Write-Output 'Disabling CredSSP'
+        Set-CredSSP -Action 'Disable'
+        
         If ($Counter -ge 12) {
             Write-Output 'CNAME record never created'
             Exit 1
@@ -1200,7 +1212,7 @@ Function Invoke-TwoTierSubCaInstall {
     & Klist.exe -li 0x3e7 purge > $null
     Start-Sleep -Seconds 5
 
-    If ($UseS3ForCRL -eq 'No' -and $DirectoryType -eq 'SelfManaged') {
+    If ($UseS3ForCRL -eq 'No') {
         $Counter = 0
         Do {
             $ARecordPresent = Resolve-DnsName -Name "$CompName.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
@@ -1219,6 +1231,11 @@ Function Invoke-TwoTierSubCaInstall {
             Exit 1
         }
 
+        If ($DirectoryType -eq 'AWSManaged') {
+            Write-Output 'Enabling CredSSP'
+            Set-CredSSP -Action 'Enable'
+        }
+
         Write-Output 'Creating PKI CNAME record'
         $Counter = 0
         Do {
@@ -1227,12 +1244,19 @@ Function Invoke-TwoTierSubCaInstall {
                 $Counter ++
                 Write-Output 'CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
-                Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                If ($DirectoryType -eq 'SelfManaged') {
+                    Invoke-Command -ComputerName $DC -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                } Else {
+                    Invoke-Command -Authentication 'CredSSP' -ComputerName $env:COMPUTERNAME -Credential $Credentials -ScriptBlock { Add-DnsServerResourceRecordCName -Name 'PKI' -ComputerName $using:DC -HostNameAlias $using:HostNameAlias -ZoneName $using:FQDN }
+                }
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
                 }
             }
         } Until ($CnameRecordPresent -or $Counter -eq 12)
+
+        Write-Output 'Disabling CredSSP'
+        Set-CredSSP -Action 'Disable'
 
         If ($Counter -ge 12) {
             Write-Output 'CNAME record never created'
