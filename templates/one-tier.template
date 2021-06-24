@@ -237,6 +237,15 @@ Conditions:
 Resources:
   InstanceRole:
     Type: AWS::IAM::Role
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: "* is required"
+          - id: W27
+            reason: "Standard Amazon practice"
+          - id: F1000
+            reason: "Standard Amazon practice"
     Properties:
       Policies:
         - PolicyDocument:
@@ -704,6 +713,13 @@ Resources:
             - "</powershell>\n"
   CaSG:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: F1000
+            reason: "Standard Amazon practice"
+          - id: W27
+            reason: "Standard Amazon practice"
     Properties:
       GroupDescription: Enterprise CA Security Group
       VpcId: !Ref VPCID
