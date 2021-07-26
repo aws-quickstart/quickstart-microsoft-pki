@@ -303,6 +303,7 @@ Rules:
 Conditions:
   UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
   UsingS3BucketForCrl: !Equals [!Ref UseS3ForCRL, 'Yes']
+  UsingLocalIisCrl: !Equals [!Ref UseS3ForCRL, 'No']
 Resources:
   InstanceRole:
     Type: AWS::IAM::Role
@@ -568,7 +569,7 @@ Resources:
 
                 $S3BucketName = '{{QSS3BucketName}}'
                 $S3KeyPrefix = '{{QSS3KeyPrefix}}'
-
+                $S3BucketRegion = '{{QSS3BucketRegion}}'
 
                 $CustomModules = @(
                     'Module-Pki.psd1',
@@ -598,7 +599,7 @@ Resources:
                 Write-Output 'Downloading Pki PowerShell Module'
                 Foreach ($CustomModule in $CustomModules) {
                     Try {
-                        $Null = Read-S3Object -BucketName $S3BucketName -Key "$($S3KeyPrefix)/scripts/Modules/Module-Pki/$CustomModule" -File "C:\AWSQuickstart\Module-Pki\$CustomModule"
+                        $Null = Read-S3Object -BucketName $S3BucketName -Key "$($S3KeyPrefix)/scripts/Modules/Module-Pki/$CustomModule" -File "C:\AWSQuickstart\Module-Pki\$CustomModule" -Region $S3BucketRegion
                     } Catch [System.Exception] {
                         Write-Output "Failed to read and download $CustomModule.Name from S3 $_"
                         Exit 1
@@ -992,6 +993,26 @@ Resources:
       Tags:
         - Key: Name
           Value: CertificateAuthoritySecurityGroup
+  CaSGCrlHttps:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UsingLocalIisCrl
+    Properties:
+      Description: HTTPS for CRL
+      GroupId: !Ref CaSG
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIp: !Ref VPCCIDR
+  CaSGCrlHttp:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UsingLocalIisCrl
+    Properties:
+      Description: HTTP for CRL
+      GroupId: !Ref CaSG
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIp: !Ref VPCCIDR
 Outputs:
   CASGID:
     Value: !Ref 'CaSG'
