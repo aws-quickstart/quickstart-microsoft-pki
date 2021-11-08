@@ -133,9 +133,12 @@ Parameters:
       - t3.small
       - t3.medium
       - t3.large
-      - t3a.small
-      - t3a.medium
-      - t3a.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
     Default: t3.medium
     Description: Amazon EC2 instance type for the Offline Root CA instance (Only Used For Two Tier PKI)
     Type: String
@@ -145,12 +148,15 @@ Parameters:
     Description: Size of the Data Drive in GiB for the Offline Root CA (Only Used For Two Tier PKI)
   EntCaServerInstanceType:
     AllowedValues:
-      - t2.small
       - t3.small
-      - t2.medium
       - t3.medium
-      - t2.large
       - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
     Default: t3.medium
     Description: Amazon EC2 instance type for the Enterprise Root or Subordinate CA instance
     Type: String
@@ -162,7 +168,7 @@ Parameters:
     Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
     Type: AWS::EC2::KeyPair::KeyName
   AMI:
-    Default: '/aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base'
+    Default: '/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base'
     Description: CA(s) SSM Parameter Value to grab the latest AMI ID
     Type: String
   DomainDNSName:

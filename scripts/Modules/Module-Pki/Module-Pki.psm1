@@ -30,34 +30,35 @@ Function New-VolumeFromRawDisk {
         Try {
             Initialize-Disk -Number $BlankDisk -PartitionStyle 'GPT' -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed attempting to bring online Data Volume $_"
+            Write-Output "Failed attempting to bring Data Volume online $_"
             Exit 1
         }
 
         Start-Sleep -Seconds 5
 
-        Write-Output 'Data Volume creating new partition'
+        Write-Output 'Creating new partition for Data Volume'
         Try {
             $DriveLetter = New-Partition -DiskNumber $BlankDisk -AssignDriveLetter -UseMaximumSize -ErrorAction Stop | Select-Object -ExpandProperty 'DriveLetter'
         } Catch [System.Exception] {
-            Write-Output "Failed creating new partition $_"
+            Write-Output "Failed creating new partition for Data Volume $_"
             Exit 1
         }
 
         Start-Sleep -Seconds 5
 
-        Write-Output 'Data Volume formatting partition'
+        Write-Output 'Formatting partition on Data Volume'
         Try {
             $Null = Format-Volume -DriveLetter $DriveLetter -FileSystem 'NTFS' -NewFileSystemLabel 'Data' -Confirm:$false -Force -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed formatting partition $_"
+            Write-Output "Failed to format partition on Data Volume $_"
             Exit 1
         }
 
+        Write-Output 'Turning off Data Volume indexing'
         Try {
             $Null = Get-CimInstance -ClassName 'Win32_Volume' -Filter "DriveLetter='$($DriveLetter):'" -ErrorAction Stop | Set-CimInstance -Arguments @{ IndexingEnabled = $False }
         } Catch [System.Exception] {
-            Write-Output "Failed to turn off indexing $_"
+            Write-Output "Failed to turn off Data Volume indexing $_"
             Exit 1
         }
     }
@@ -95,7 +96,7 @@ Function Set-CredSSP {
                 Exit 1
             }
        
-            Write-Output 'Setting CredSSP Registry entries'
+            Write-Output 'Setting CredSSP registry entries'
             $CredDelKeyPresent = Test-Path -Path (Join-Path -Path $RootKey -ChildPath $CredDelKey) -ErrorAction SilentlyContinue
             If (-not $CredDelKeyPresent) {
                 Try {
@@ -118,7 +119,7 @@ Function Set-CredSSP {
                     $Null = New-ItemProperty -Path "Registry::$FreshCredKeyPath" -Name '1' -Value 'WSMAN/*' -PropertyType 'String' -Force -ErrorAction Stop
                     $Null = New-ItemProperty -Path "Registry::$FreshCredKeyNTLMPath" -Name '1' -Value 'WSMAN/*' -PropertyType 'String' -Force -ErrorAction Stop
                 } Catch [System.Exception] {
-                    Write-Output "Failed to create CredSSP Registry entries $_"
+                    Write-Output "Failed to create CredSSP registry entries $_"
                     Remove-Item -Path (Join-Path -Path $RootKey -ChildPath $CredDelKey) -Force -Recurse
                     Exit 1
                 }
@@ -134,11 +135,11 @@ Function Set-CredSSP {
                 Exit 1
             }
 
-            Write-Output 'Removing CredSSP Registry entries'
+            Write-Output 'Removing CredSSP registry entries'
             Try {
                 Remove-Item -Path (Join-Path -Path $RootKey -ChildPath $CredDelKey) -Force -Recurse
             } Catch [System.Exception] {
-                Write-Output "Failed to remove CredSSP Registry entries $_"
+                Write-Output "Failed to remove CredSSP registry entries $_"
                 Exit 1
             }
         }
@@ -165,7 +166,7 @@ Function Invoke-PreConfig {
     Try {
         $Null = New-Item -Path 'C:\AWSQuickstart\publickeys' -ItemType 'Directory' -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to create publickeys file directory $_"
+        Write-Output "Failed to create file directory for DSC public cert $_"
         Exit 1
     }
     
@@ -173,7 +174,7 @@ Function Invoke-PreConfig {
     Try {
         $cert = New-SelfSignedCertificate -Type 'DocumentEncryptionCertLegacyCsp' -DnsName 'AWSQSDscEncryptCert' -HashAlgorithm 'SHA256' -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to create self signed cert $_"
+        Write-Output "Failed to create certificate to encrypt credentials in MOF file $_"
         Exit 1
     }
     
@@ -214,10 +215,10 @@ Function Invoke-LcmConfig {
         }
     }
     
-    Write-Output 'Generating MOF file for LCM'
+    Write-Output 'Generating MOF file for DSC LCM'
     LCMConfig -OutputPath 'C:\AWSQuickstart\LCMConfig'
         
-    Write-Output 'Sets LCM configuration to MOF generated in previous command'
+    Write-Output 'Setting the DSC LCM configuration from the MOF generated in previous command'
     Try {
         Set-DscLocalConfigurationManager -Path 'C:\AWSQuickstart\LCMConfig' -ErrorAction Stop
     } Catch [System.Exception] {
@@ -282,7 +283,7 @@ Function Get-SecretInfo {
         Exit 1
     }
        
-    Write-Output 'Creating credential object'
+    Write-Output 'Creating PSCredential object from Secret'
     $Username = $SecretContent.username
     $UserPassword = ConvertTo-SecureString ($SecretContent.password) -AsPlainText -Force
     $Credentials = New-Object -TypeName 'System.Management.Automation.PSCredential' ("$Domain\$Username", $UserPassword)
@@ -306,7 +307,7 @@ Function Invoke-DscStatusCheck {
     If ($LCMState -eq 'PendingConfiguration' -Or $LCMState -eq 'PendingReboot') {
         Exit 3010
     } Else {
-        Write-Output 'DSC Config Completed'
+        Write-Output 'DSC configuration completed'
     }
 }
 
@@ -329,11 +330,11 @@ Function Set-DscConfiguration {
     # Main
     #==================================================
 
-    Write-Output 'Getting the DSC encryption thumbprint to secure the MOF file'
+    Write-Output 'Getting the DSC encryption certificate thumbprint to secure the MOF file'
     Try {
         $DscCertThumbprint = Get-ChildItem -Path 'cert:\LocalMachine\My' -ErrorAction Stop | Where-Object { $_.Subject -eq 'CN=AWSQSDscEncryptCert' } | Select-Object -ExpandProperty 'Thumbprint'
     } Catch [System.Exception] {
-        Write-Output "Failed to get DSC cert thumbprint $_"
+        Write-Output "Failed to get DSC encryption certificate thumbprint $_"
         Exit 1
     }
     
@@ -464,11 +465,11 @@ Function Invoke-EnterpriseCaConfig {
     # Variables
     #==================================================
 
-    Write-Output 'Getting AD domain'
+    Write-Output 'Getting AD domain information'
     Try {
         $Domain = Get-ADDomain -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to get AD domain $_"
+        Write-Output "Failed to get AD domain information $_"
         Exit 1
     }
 
@@ -505,7 +506,7 @@ Function Invoke-EnterpriseCaConfig {
             $ARecordPresent = Resolve-DnsName -Name "$CompName.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
             If (-not $ARecordPresent) {
                 $Counter ++
-                Write-Output 'A record missing.'
+                Write-Output 'CA A record missing.'
                 Register-DnsClient
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
@@ -514,7 +515,7 @@ Function Invoke-EnterpriseCaConfig {
         } Until ($ARecordPresent -or $Counter -eq 12)
 
         If ($Counter -ge 12) {
-            Write-Output 'A record never created'
+            Write-Output 'CA A record never created'
             Exit 1
         }
 
@@ -529,7 +530,7 @@ Function Invoke-EnterpriseCaConfig {
             $CnameRecordPresent = Resolve-DnsName -Name "PKI.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
             If (-not $CnameRecordPresent) {
                 $Counter ++
-                Write-Output 'CNAME record missing.'
+                Write-Output 'PKI CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
                 Switch ($DirectoryType) {
                     'SelfManaged' {
@@ -549,19 +550,18 @@ Function Invoke-EnterpriseCaConfig {
         Set-CredSSP -Action 'Disable'
         
         If ($Counter -ge 12) {
-            Write-Output 'CNAME record never created'
-            Exit 1
+            Write-Output 'ERROR: CNAME record never created, please create the record manually'
         }
     }
 
-    Write-Output 'Creating PKI folders'
+    Write-Output 'Creating PKI directories'
     Foreach ($Folder in $Folders) {
         $PathPresent = Test-Path -Path $Folder -ErrorAction SilentlyContinue
         If (-not $PathPresent) {
             Try {
                 $Null = New-Item -Path $Folder -Type 'Directory' -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create $Folder Directory $_"
+                Write-Output "Failed to create $Folder directory $_"
                 Exit 1
             }
         } 
@@ -576,7 +576,7 @@ Function Invoke-EnterpriseCaConfig {
             Try {
                 $Null = New-SmbShare -Name 'Pki' -Path 'D:\Pki' -FullAccess 'SYSTEM', "$Netbios\Domain Admins" -ChangeAccess "$Netbios\Cert Publishers" -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create PKI SMB Share $_"
+                Write-Output "Failed to create PKI SMB share $_"
                 Exit 1
             }
         }
@@ -587,7 +587,7 @@ Function Invoke-EnterpriseCaConfig {
             Try {
                 $Null = New-WebVirtualDirectory -Site 'Default Web Site' -Name 'Pki' -PhysicalPath 'D:\Pki' -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create IIS virtual directory  $_"
+                Write-Output "Failed to create IIS virtual directory $_"
                 Exit 1
             }
         }
@@ -596,7 +596,7 @@ Function Invoke-EnterpriseCaConfig {
         Try {
             Set-WebConfigurationProperty -Filter '/system.webServer/security/requestFiltering' -Name 'allowDoubleEscaping' -Value 'true' -PSPath 'IIS:\Sites\Default Web Site\Pki' -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to set IIS requestFiltering  $_"
+            Write-Output "Failed to set IIS requestFiltering $_"
             Exit 1
         }
 
@@ -604,7 +604,7 @@ Function Invoke-EnterpriseCaConfig {
         Try {
             Set-WebConfigurationProperty -Filter '/system.webServer/directoryBrowse' -Name 'enabled' -Value 'true' -PSPath 'IIS:\Sites\Default Web Site\Pki' -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to set IIS directoryBrowse  $_"
+            Write-Output "Failed to set IIS directoryBrowse $_"
             Exit 1
         }
 
@@ -619,23 +619,23 @@ Function Invoke-EnterpriseCaConfig {
             Try {
                 $Acl = Get-Acl -Path $FilePath -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to get ACL for PKI directory  $_"
+                Write-Output "Failed to get ACL for PKI directory $_"
                 Exit 1
             }
             $Acl.AddAccessRule($AccessRule)
             Try {
                 Set-Acl -Path $FilePath -AclObject $Acl -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to set ACL for PKI directory  $_"
+                Write-Output "Failed to set ACL for PKI directory $_"
                 Exit 1
             }
         }
 
-        Write-Output 'Resetting IIS'
+        Write-Output 'Resetting IIS service'
         Try {
             & iisreset.exe > $null
         } Catch [System.Exception] {
-            Write-Output "Failed to reset IIS service  $_"
+            Write-Output "Failed to reset IIS service $_"
             Exit 1
         }
         If ($DirectoryType -eq 'SelfManaged') {
@@ -699,11 +699,11 @@ Function Invoke-EnterpriseCaConfig {
         Exit 1
     }
 
-    Write-Output 'Installing CA'
+    Write-Output 'Installing Enterprise Root CA'
     Try {
         $Null = Install-AdcsCertificationAuthority -CAType 'EnterpriseRootCA' -CACommonName $EntCaCommonName -KeyLength $EntCaKeyLength -HashAlgorithm $EntCaHashAlgorithm -CryptoProviderName 'RSA#Microsoft Software Key Storage Provider' -ValidityPeriod 'Years' -ValidityPeriodUnits $EntCaValidityPeriodUnits -DatabaseDirectory 'D:\ADCS\DB' -LogDirectory 'D:\ADCS\Log' -Force -ErrorAction Stop -Credential $Credentials
     } Catch [System.Exception] {
-        Write-Output "Failed to install CA $_"
+        Write-Output "Failed to install Enterprise Root CA $_"
         Exit 1
     }
 
@@ -725,7 +725,7 @@ Function Invoke-EnterpriseCaConfig {
         $Null = Get-CACRLDistributionPoint | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CACRLDistributionPoint -Force -ErrorAction Stop
         $Null = Add-CACRLDistributionPoint -Uri $CDP -AddToCertificateCDP -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set CRL Distro $_"
+        Write-Output "Failed set CRL distro points $_"
         Exit 1
     }
 
@@ -734,11 +734,11 @@ Function Invoke-EnterpriseCaConfig {
         $Null = Get-CAAuthorityInformationAccess | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CAAuthorityInformationAccess -Force -ErrorAction Stop
         $Null = Add-CAAuthorityInformationAccess -AddToCertificateAia -Uri $AIA -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set AIA Distro $_"
+        Write-Output "Failed set AIA distro points $_"
         Exit 1
     }
 
-    Write-Output 'Configuring Enterprise CA'
+    Write-Output 'Configuring Enterprise Root CA'
     & certutil.exe -setreg CA\CRLOverlapPeriodUnits '12' > $null
     & certutil.exe -setreg CA\CRLOverlapPeriod 'Hours' > $null
     & certutil.exe -setreg CA\ValidityPeriodUnits '5' > $null
@@ -763,7 +763,7 @@ Function Invoke-EnterpriseCaConfig {
     Try {
         Copy-Item -Path 'C:\Windows\System32\CertSrv\CertEnroll\*.cr*' -Destination 'D:\Pki\' -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to copy CRL to PKI folder  $_"
+        Write-Output "Failed to copy CRL to PKI folder $_"
         Exit 1
     }
 
@@ -844,23 +844,23 @@ Function Invoke-Cleanup {
 
     Write-Output 'Setting Windows Firewall WinRM Public rule to allow VPC CIDR traffic'
     Try {
-        Set-NetFirewallRule -Name 'WINRM-HTTP-In-TCP-PUBLIC' -RemoteAddress $VPCCIDR
+        Set-NetFirewallRule -Name 'WINRM-HTTP-In-TCP-PUBLIC' -RemoteAddress $VPCCIDR -ErrorAction Stop
     } Catch [System.Exception] {
         Write-Output "Failed allow WinRM Traffic from VPC CIDR $_"
     }
 
-    Write-Output 'Removing DSC Configuration'
+    Write-Output 'Removing DSC configuration'
     Try {    
         Remove-DscConfigurationDocument -Stage 'Current' -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed build DSC Configuration $_"
+        Write-Output "Failed to remove DSC configuration $_"
     }
 
     Write-Output 'Re-enabling Windows Firewall'
     Try {
         Get-NetFirewallProfile -ErrorAction Stop | Set-NetFirewallProfile -Enabled 'True' -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed re-enable firewall $_"
+        Write-Output "Failed re-enable Windows Firewall $_"
     }
 
     Write-Output 'Removing QuickStart build files'
@@ -908,14 +908,14 @@ Function Invoke-TwoTierOrCaConfig {
     # Main
     #==================================================
 
-    Write-Output 'Creating PKI folders'
+    Write-Output 'Creating PKI directories'
     Foreach ($Folder in $Folders) {
         $PathPresent = Test-Path -Path $Folder
         If (-not $PathPresent) {
             Try {
                 $Null = New-Item -Path $Folder -Type 'Directory' -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create $Folder Directory $_"
+                Write-Output "Failed to create $Folder directory $_"
                 Exit 1
             }
         } 
@@ -989,7 +989,7 @@ Function Invoke-TwoTierOrCaConfig {
     Try {
         $Null = Install-AdcsCertificationAuthority -CAType 'StandaloneRootCA' -CACommonName $OrCaCommonName -KeyLength $OrCaKeyLength -HashAlgorithm $OrCaHashAlgorithm -CryptoProviderName 'RSA#Microsoft Software Key Storage Provider' -ValidityPeriod 'Years' -ValidityPeriodUnits $OrCaValidityPeriodUnits -DatabaseDirectory 'D:\ADCS\DB' -LogDirectory 'D:\ADCS\Log' -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to install CA $_"
+        Write-Output "Failed to install Offline Root CA $_"
         Exit 1
     }
 
@@ -1011,7 +1011,7 @@ Function Invoke-TwoTierOrCaConfig {
         $Null = Get-CACRLDistributionPoint | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CACRLDistributionPoint -Force -ErrorAction Stop
         $Null = Add-CACRLDistributionPoint -Uri $CDP -AddToCertificateCDP -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set CRL Distro $_"
+        Write-Output "Failed set CRL distro points $_"
         Exit 1
     }
 
@@ -1020,7 +1020,7 @@ Function Invoke-TwoTierOrCaConfig {
         $Null = Get-CAAuthorityInformationAccess | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CAAuthorityInformationAccess -Force -ErrorAction Stop
         $Null = Add-CAAuthorityInformationAccess -AddToCertificateAia -Uri $AIA -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set AIA Distro $_"
+        Write-Output "Failed set AIA distro points $_"
         Exit 1
     }
 
@@ -1162,7 +1162,7 @@ Function Invoke-TwoTierSubCaInstall {
     Try {
         $Domain = Get-ADDomain -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to get AD domain $_"
+        Write-Output "Failed to get AD domain information $_"
         Exit 1
     }
 
@@ -1196,7 +1196,7 @@ Function Invoke-TwoTierSubCaInstall {
         Try {
             Add-ADGroupMember -Identity 'Enterprise Admins' -Members (Get-ADComputer -Identity $CompName -Credential $Credentials -ErrorAction Stop | Select-Object -ExpandProperty 'DistinguishedName') -Credential $Credentials -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to add computer account to Enteprise Admins $_"
+            Write-Output "Failed to add computer account to Enterprise Admins $_"
             Exit 1
         }
     } Else {
@@ -1211,7 +1211,7 @@ Function Invoke-TwoTierSubCaInstall {
     Write-Output 'Sleeping to ensure replication of group membership has completed'
     Start-Sleep -Seconds 60 
 
-    Write-Output 'Clearing all SYSTEM kerberos tickets'
+    Write-Output 'Clearing all SYSTEM Kerberos tickets'
     & Klist.exe -li 0x3e7 purge > $null
     Start-Sleep -Seconds 5
 
@@ -1221,7 +1221,7 @@ Function Invoke-TwoTierSubCaInstall {
             $ARecordPresent = Resolve-DnsName -Name "$CompName.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
             If (-not $ARecordPresent) {
                 $Counter ++
-                Write-Output 'A record missing.'
+                Write-Output 'CA A record missing.'
                 Register-DnsClient
                 If ($Counter -gt '1') {
                     Start-Sleep -Seconds 10
@@ -1230,7 +1230,7 @@ Function Invoke-TwoTierSubCaInstall {
         } Until ($ARecordPresent -or $Counter -eq 12)
 
         If ($Counter -ge 12) {
-            Write-Output 'A record never created'
+            Write-Output 'CA A record never created'
             Exit 1
         }
 
@@ -1245,7 +1245,7 @@ Function Invoke-TwoTierSubCaInstall {
             $CnameRecordPresent = Resolve-DnsName -Name "PKI.$FQDN" -DnsOnly -Server $DC -ErrorAction SilentlyContinue
             If (-not $CnameRecordPresent) {
                 $Counter ++
-                Write-Output 'CNAME record missing.'
+                Write-Output 'PKI CNAME record missing.'
                 $HostNameAlias = "$CompName.$FQDN"
                 Switch ($DirectoryType) {
                     'SelfManaged' {
@@ -1265,8 +1265,7 @@ Function Invoke-TwoTierSubCaInstall {
         Set-CredSSP -Action 'Disable'
 
         If ($Counter -ge 12) {
-            Write-Output 'CNAME record never created'
-            Exit 1
+            Write-Output 'ERROR: CNAME record never created, please create the record manually'
         }
     }
 
@@ -1277,7 +1276,7 @@ Function Invoke-TwoTierSubCaInstall {
             Try {
                 $Null = New-Item -Path $Folder -Type 'Directory' -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create $Folder Directory $_"
+                Write-Output "Failed to create $Folder folder $_"
                 Exit 1
             }
         } 
@@ -1292,7 +1291,7 @@ Function Invoke-TwoTierSubCaInstall {
             Try {
                 $Null = New-SmbShare -Name 'Pki' -Path 'D:\Pki' -FullAccess 'SYSTEM', "$Netbios\Domain Admins" -ChangeAccess "$Netbios\Cert Publishers" -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create PKI SMB Share $_"
+                Write-Output "Failed to create PKI SMB share $_"
                 Exit 1
             }
         }
@@ -1303,7 +1302,7 @@ Function Invoke-TwoTierSubCaInstall {
             Try {
                 $Null = New-WebVirtualDirectory -Site 'Default Web Site' -Name 'Pki' -PhysicalPath 'D:\Pki' -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to create IIS virtual directory  $_"
+                Write-Output "Failed to create IIS virtual directory $_"
                 Exit 1
             }
         }
@@ -1312,7 +1311,7 @@ Function Invoke-TwoTierSubCaInstall {
         Try {
             $Null = Set-WebConfigurationProperty -Filter '/system.webServer/security/requestFiltering' -Name 'allowDoubleEscaping' -Value 'true' -PSPath 'IIS:\Sites\Default Web Site\Pki' -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to set IIS requestFiltering  $_"
+            Write-Output "Failed to set IIS requestFiltering $_"
             Exit 1
         }
 
@@ -1320,7 +1319,7 @@ Function Invoke-TwoTierSubCaInstall {
         Try {
             $Null = Set-WebConfigurationProperty -Filter '/system.webServer/directoryBrowse' -Name 'enabled' -Value 'true' -PSPath 'IIS:\Sites\Default Web Site\Pki' -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to set IIS directoryBrowse  $_"
+            Write-Output "Failed to set IIS directoryBrowse $_"
             Exit 1
         }
         Write-Output 'Setting PKI folder file system ACLs'
@@ -1334,23 +1333,23 @@ Function Invoke-TwoTierSubCaInstall {
             Try {
                 $Acl = Get-Acl -Path $FilePath -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to get ACL for PKI directory  $_"
+                Write-Output "Failed to get ACL for PKI directory $_"
                 Exit 1
             }
             $Acl.AddAccessRule($AccessRule)
             Try {
                 Set-Acl -Path $FilePath -AclObject $Acl -ErrorAction Stop
             } Catch [System.Exception] {
-                Write-Output "Failed to set ACL for PKI directory  $_"
+                Write-Output "Failed to set ACL for PKI directory $_"
                 Exit 1
             }
         }
 
-        Write-Output 'Resetting IIS'
+        Write-Output 'Resetting IIS service'
         Try {
             & iisreset.exe > $null
         } Catch [System.Exception] {
-            Write-Output "Failed to reset IIS service  $_"
+            Write-Output "Failed to reset IIS service $_"
             Exit 1
         }
 
@@ -1449,7 +1448,7 @@ Function Invoke-TwoTierSubCaInstall {
     $OrcaCertFn = $OrcaCert | Select-Object -ExpandProperty 'FullName'
     $OrcaCrlFn = Get-ChildItem -Path 'D:\Pki\*.crl' | Select-Object -ExpandProperty 'FullName'
 
-    Write-Output 'Publishing Offline CA Certs and CRLs'
+    Write-Output 'Publishing Offline CA certificates and CRLs'
     & certutil.exe -dspublish -f $OrcaCertFn RootCA > $null
     & certutil.exe -addstore -f root $OrcaCertFn > $null
     & certutil.exe -addstore -f root $OrcaCrlFn > $null
@@ -1496,13 +1495,13 @@ Function Invoke-TwoTierSubCaCertIssue {
     # Main
     #==================================================
 
-    Write-Output 'Creating IssuePkiSysvolPSDrive'
     If ($DirectoryType -eq 'SelfManaged') {
         $SysvolPath = "\\$DomainDNSName\SYSVOL\$DomainDNSName"
     } Else {
         $SysvolPath = "\\$DomainDNSName\SYSVOL\$DomainDNSName\Policies"
     }
 
+    Write-Output 'Creating IssuePkiSysvolPSDrive'
     Try {
         $Null = New-PSDrive -Name 'IssuePkiSysvolPSDrive' -PSProvider 'FileSystem' -Root $SysvolPath -Credential $Credentials -ErrorAction Stop
     } Catch [System.Exception] {
@@ -1518,7 +1517,7 @@ Function Invoke-TwoTierSubCaCertIssue {
         Exit 1
     }
 
-    Write-Output 'Submitting, Issuing and Retrieving the SubCA certificate'
+    Write-Output 'Submitting, issuing and retrieving the SubCA certificate'
     $SubReq = 'D:\Pki\SubCA\SubCa.req'
     $Request = & Certreq.exe -f -q -config $CAComputerName -Submit $SubReq 'D:\Pki\SubCA\SubCa.cer'
     $RequestString = $Request | Select-String -Pattern 'RequestId:.\d$'
@@ -1542,11 +1541,11 @@ Function Invoke-TwoTierSubCaCertIssue {
         Exit 1
     }
 
-    Write-Output 'Removing SubCA Cert request files'
+    Write-Output 'Removing SubCA certificate request files'
     Try {
         Remove-Item -Path 'D:\Pki\SubCA' -Recurse -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed remove QuickStart build files $_"
+        Write-Output "Failed remove SubCA certificate files $_"
     }
 }
 
@@ -1563,11 +1562,11 @@ Function Invoke-TwoTierSubCaConfig {
     # Variables
     #==================================================
 
-    Write-Output 'Getting AD domain'
+    Write-Output 'Getting AD domain information'
     Try {
         $Domain = Get-ADDomain -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed to get AD domain $_"
+        Write-Output "Failed to get AD domain information $_"
         Exit 1
     }
 
@@ -1658,7 +1657,7 @@ Function Invoke-TwoTierSubCaConfig {
         $Null = Get-CACRLDistributionPoint | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CACRLDistributionPoint -Force -ErrorAction Stop
         $Null = Add-CACRLDistributionPoint -Uri $CDP -AddToCertificateCDP -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set CRL Distro $_"
+        Write-Output "Failed set CRL istro points $_"
         Exit 1
     }
 
@@ -1667,11 +1666,11 @@ Function Invoke-TwoTierSubCaConfig {
         $Null = Get-CAAuthorityInformationAccess | Where-Object { $_.Uri -like '*ldap*' -or $_.Uri -like '*http*' -or $_.Uri -like '*file*' } -ErrorAction Stop | Remove-CAAuthorityInformationAccess -Force -ErrorAction Stop
         $Null = Add-CAAuthorityInformationAccess -AddToCertificateAia -Uri $AIA -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed set AIA Distro $_"
+        Write-Output "Failed set AIA distro points $_"
         Exit 1
     }
 
-    Write-Output 'Configuring Enterprise CA'
+    Write-Output 'Configuring Subordinate Enterprise CA'
     & certutil.exe -setreg CA\CRLOverlapPeriodUnits '12' > $null
     & certutil.exe -setreg CA\CRLOverlapPeriod 'Hours' > $null
     & certutil.exe -setreg CA\ValidityPeriodUnits '5' > $null
@@ -1729,7 +1728,7 @@ Function Invoke-TwoTierSubCaConfig {
             Write-Output "Failed to get domain controllers $_"
         }
 
-        Write-Output 'Running Group Policy update'
+        Write-Output 'Running Group Policy update against all domain controllers'
         Foreach ($DomainController in $DomainControllers) {
             Invoke-Command -ComputerName $DomainController -Credential $Credentials -ScriptBlock { Invoke-GPUpdate -RandomDelayInMinutes '0' -Force }
         }
@@ -1765,11 +1764,11 @@ Function Invoke-TwoTierSubCaConfig {
         Write-Output "Failed restart CA service $_"
     }
 
-    Write-Output 'Removing RootCA Cert request files'
+    Write-Output 'Removing Subordinate CA Cert request files'
     Try {
         Remove-Item -Path 'D:\Pki\Req' -Recurse -Force -ErrorAction Stop
     } Catch [System.Exception] {
-        Write-Output "Failed remove QuickStart build files $_"
+        Write-Output "Failed remove Subordinate CA Cert request files $_"
     }
  
     Write-Output 'Removing the PkiSubCA and PKIRootCA SYSVOL folders'
@@ -1920,7 +1919,7 @@ Function New-KerbCertTemplate {
     Write-Output 'Enabling CredSSP'
     Set-CredSSP -Action 'Enable'
 
-    Write-Output 'Sleeping to ensure replication of cert template has completed'
+    Write-Output 'Sleeping to ensure replication of certificate template has completed'
     Start-Sleep -Seconds 60 
 
     Write-Output 'Cleaning up ACLs on LdapOverSSL-QS certificate template'
@@ -1951,12 +1950,12 @@ Function New-KerbCertTemplate {
                 Get-ADObject "CN=$Using:CA,CN=Enrollment Services,CN=Public Key Services,CN=Services,CN=Configuration,$Using:BaseDn" -Partition "CN=Configuration,$Using:BaseDn" -Properties 'certificateTemplates' | Select-Object -ExpandProperty 'certificateTemplates' | Where-Object { $_ -contains 'LdapOverSSL-QS' }
             }
         } Catch [System.Exception] {
-            Write-Output "LdapOverSSL-QS Template missing"
+            Write-Output "LdapOverSSL-QS template missing"
             $TempPresent = $Null
         }
         If (-not $TempPresent) {
             $Counter ++
-            Write-Output "LdapOverSSL-QS Template missing adding it."
+            Write-Output "LdapOverSSL-QS template missing adding it."
             Try {
                 Invoke-Command -Authentication 'Credssp' -ComputerName $env:COMPUTERNAME -Credential $Credential -ScriptBlock {
                     Set-ADObject "CN=$Using:CA,CN=Enrollment Services,CN=Public Key Services,CN=Services,CN=Configuration,$Using:BaseDn" -Partition "CN=Configuration,$Using:BaseDn" -Add @{ 'certificateTemplates' = 'LdapOverSSL-QS' } 
@@ -1970,7 +1969,7 @@ Function New-KerbCertTemplate {
         }
     } Until ($TempPresent -or $Counter -eq 12)
 
-    Write-Output 'Sleeping to ensure replication of cert template publish has completed'
+    Write-Output 'Sleeping to ensure replication of certificate template publish has completed'
     Start-Sleep -Seconds 60 
 
     Write-Output 'Disabling CredSSP'
@@ -2053,7 +2052,7 @@ Function Set-CertTemplateAclInheritance {
         Try {
             Set-Acl -AclObject $ObjectAcl -Path "AD:\$Using:Path" -ErrorAction Stop
         } Catch [System.Exception] {
-            Write-Output "Failed to set ACL for $Using:Path $_"
+            Write-Output "Failed to set ACL inheritance for $Using:Path $_"
             Exit 1
         }
     }

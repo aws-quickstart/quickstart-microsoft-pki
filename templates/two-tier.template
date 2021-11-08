@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >-
-  This template creates 2 Windows 2019 Server Active Directory Certificate Services
+  This template creates 2 Windows Server Active Directory Certificate Services
   CAs 1 Offline Root CA and 1 Enterprise Subordinate CA in a subnet inside a VPC. 
   **WARNING** This template creates Amazon EC2 Windows instances and related resources. 
   You will be billed for the AWS resources used if you create a stack from this template. (qs-1rtep036f)
@@ -123,7 +123,7 @@ Metadata:
         default: VPC ID
 Parameters:
   AMI:
-    Default: /aws/service/ami-windows-latest/Windows_Server-2019-English-Full-Base
+    Default: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base
     Description: AMI ID passed in from parent stack
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
   AdministratorSecret:
@@ -187,12 +187,15 @@ Parameters:
     Type: String
   OrCaServerInstanceType:
     AllowedValues:
-      - t2.small
       - t3.small
-      - t2.medium
       - t3.medium
-      - t2.large
       - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
     Default: t3.medium
     Description: Amazon EC2 instance type for the Offline Root CA instance
     Type: String
@@ -252,12 +255,15 @@ Parameters:
     Type: String
   SubCaServerInstanceType:
     AllowedValues:
-      - t2.small
       - t3.small
-      - t2.medium
       - t3.medium
-      - t2.large
       - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
     Default: t3.medium
     Description: Amazon EC2 instance type for the Subordinate CA instance
     Type: String
