@@ -49,6 +49,7 @@ Metadata:
           - CaValidityPeriodUnits
           - UseS3ForCRL
           - S3CRLBucketName
+          - EnableAdvancedAudtingandMetrics
       - Label:
           default: AWS Quick Start configuration
         Parameters:
@@ -56,96 +57,141 @@ Metadata:
           - QSS3BucketRegion
           - QSS3KeyPrefix
     ParameterLabels:
-      VPCCIDR:
-        default: VPC CIDR
-      VPCID:
-        default: VPC ID
-      CaServerSubnet:
-        default: CA(s) Subnet ID
-      DomainMembersSG:
-        default: Domain Members Security Group ID
-      OrCaServerInstanceType:
-        default: Offline Root CA Instance Type (Only Used For Two Tier PKI)
-      OrCaDataDriveSizeGiB:
-        default: Offline Root CA Data Drive Size (Only Used For Two Tier PKI)
-      EntCaServerInstanceType:
-        default: Enterprise Root or Subordinate CA Instance Type
-      EntCaDataDriveSizeGiB:
-        default: Enterprise Root or Subordinate CA Data Drive Size
-      KeyPairName:
-        default: Key Pair Name
       AMI:
         default: SSM Parameter Value for latest AMI ID
-      DirectoryType:
-        default: Active Directory Domain Services Type
-      DomainDNSName:
-        default: Domain FQDN DNS Name
-      DomainNetBIOSName:
-        default: Domain NetBIOS Name
-      DomainController1IP:
-        default: IP used for DNS (Must be accessible)
-      DomainController2IP:
-        default: IP used for DNS (Must be accessible)
       AdministratorSecret:
         default: Secret ARN Containing CA Install Credentials
       CADeploymentType:
         default: CA Deployment Type
-      OrCaServerNetBIOSName:
-        default: Offline Root CA NetBIOS Name (Only Used For Two Tier PKI)
-      EntCaServerNetBIOSName:
-        default: Enterprise Root or Subordinate CA NetBIOS Name
-      CaKeyLength:
-        default: CA Key Length
       CaHashAlgorithm:
         default: CA Hash Algorithm
-      OrCaValidityPeriodUnits:
-        default: Offline Root CA Certificate Validity Period in Years (Only Used For Two Tier PKI)
+      CaKeyLength:
+        default: CA Key Length
+      CaServerSubnet:
+        default: CA(s) Subnet ID
       CaValidityPeriodUnits:
         default: Enterprise Root or Subordinate CA Certificate Validity Period in Years
-      UseS3ForCRL:
-        default: Use S3 for CA CRL Location
-      S3CRLBucketName:
-        default: CA CRL S3 Bucket Name
+      DirectoryType:
+        default: Active Directory Domain Services Type
+      DomainController1IP:
+        default: IP used for DNS (Must be accessible)
+      DomainController2IP:
+        default: IP used for DNS (Must be accessible)
+      DomainDNSName:
+        default: Domain FQDN DNS Name
+      DomainMembersSG:
+        default: Domain Members Security Group ID
+      DomainNetBIOSName:
+        default: Domain NetBIOS Name
+      EnableAdvancedAudtingandMetrics:
+        default: Advanced Auditing and Metrics
+      EntCaDataDriveSizeGiB:
+        default: Enterprise Root or Subordinate CA Data Drive Size
+      EntCaServerInstanceType:
+        default: Enterprise Root or Subordinate CA Instance Type
+      EntCaServerNetBIOSName:
+        default: Enterprise Root or Subordinate CA NetBIOS Name
+      KeyPairName:
+        default: Key Pair Name
+      OrCaDataDriveSizeGiB:
+        default: Offline Root CA Data Drive Size (Only Used For Two Tier PKI)
+      OrCaServerInstanceType:
+        default: Offline Root CA Instance Type (Only Used For Two Tier PKI)
+      OrCaServerNetBIOSName:
+        default: Offline Root CA NetBIOS Name (Only Used For Two Tier PKI)
+      OrCaValidityPeriodUnits:
+        default: Offline Root CA Certificate Validity Period in Years (Only Used For Two Tier PKI)
       QSS3BucketName:
         default: Quick Start S3 bucket name
       QSS3BucketRegion:
         default: Quick Start S3 bucket Region
       QSS3KeyPrefix:
         default: Quick Start S3 key prefix
+      S3CRLBucketName:
+        default: CA CRL S3 Bucket Name
+      UseS3ForCRL:
+        default: Use S3 for CA CRL Location
+      VPCCIDR:
+        default: VPC CIDR
+      VPCID:
+        default: VPC ID
 Parameters:
-  VPCCIDR:
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
-    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
-    Default: 10.0.0.0/16
-    Description: CIDR Block for the VPC
+  AMI:
+    Default: /aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base
+    Description: CA(s) SSM Parameter Value to grab the latest AMI ID
     Type: String
-  VPCID:
-    Description: ID of the VPC (e.g., vpc-0343606e)
-    Type: AWS::EC2::VPC::Id
+  AdministratorSecret:
+    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins or AWS Delegated Enterprise Certificate Authority Administrators)
+    Type: String
+  CADeploymentType:
+    AllowedValues:
+      - One-Tier
+      - Two-Tier
+    Default: Two-Tier
+    Description: Deploy Two Tier (Offline Root with Subordinate Enterprise CA) or One Tier (Enterprise Root CA) PKI Infrastructure
+    Type: String
+  CaHashAlgorithm:
+    AllowedValues:
+      - SHA256
+      - SHA384
+      - SHA512
+    Default: SHA256
+    Description: CA(s) Hash Algorithm for Signing Certificates
+    Type: String
+  CaKeyLength:
+    AllowedValues:
+      - '2048'
+      - '4096'
+    Default: '2048'
+    Description: CA(s) Cryptographic Provider Key Length
+    Type: String
   CaServerSubnet:
     Description: ID of the CA(s) subnet (e.g., subnet-a0246dcd)
     Type: AWS::EC2::Subnet::Id
-  DomainMembersSG:
-    Description: Security Group ID for Domain Members Security Group.  
-    Type: AWS::EC2::SecurityGroup::Id
-  OrCaServerInstanceType:
-    AllowedValues:
-      - t3.small
-      - t3.medium
-      - t3.large
-      - t3.xlarge
-      - t3.2xlarge
-      - m5.large
-      - m5.xlarge
-      - m5.2xlarge
-      - m5.4xlarge
-    Default: t3.medium
-    Description: Amazon EC2 instance type for the Offline Root CA instance (Only Used For Two Tier PKI)
+  CaValidityPeriodUnits:
+    Default: '5'
+    Description: Validity Period in Years
     Type: String
-  OrCaDataDriveSizeGiB:
-    Type: 'Number'
+  DirectoryType:
+    AllowedValues:
+      - AWSManaged
+      - SelfManaged
+    Description: Type of Active Directory the CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
+    Type: String
+  DomainController1IP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Description: IP of DNS server that can resolve domain (Must be accessible)
+    Type: String
+  DomainController2IP:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
+    Description: IP of DNS server that can resolve domain (Must be accessible)
+    Type: String
+  DomainDNSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
+    Description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
+    MaxLength: '255'
+    MinLength: '2'
+    Type: String
+  DomainMembersSG:
+    Description: Security Group ID for Domain Members Security Group.
+    Type: AWS::EC2::SecurityGroup::Id
+  DomainNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
+    MaxLength: '15'
+    MinLength: '1'
+    Type: String
+  EnableAdvancedAudtingandMetrics:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description: Enable advanced auditing and metrics and upload them to CloudWatch using the Amazon Kinesis Agent for Microsoft Windows
+    Type: String
+  EntCaDataDriveSizeGiB:
     Default: '2'
-    Description: Size of the Data Drive in GiB for the Offline Root CA (Only Used For Two Tier PKI)
+    Description: Size of the Data Drive in GiB for the Enterprise Root or Subordinate CA
+    Type: Number
   EntCaServerInstanceType:
     AllowedValues:
       - t3.small
@@ -160,101 +206,44 @@ Parameters:
     Default: t3.medium
     Description: Amazon EC2 instance type for the Enterprise Root or Subordinate CA instance
     Type: String
-  EntCaDataDriveSizeGiB:
-    Type: 'Number'
-    Default: '2'
-    Description: Size of the Data Drive in GiB for the Enterprise Root or Subordinate CA
-  KeyPairName:
-    Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
-    Type: AWS::EC2::KeyPair::KeyName
-  AMI:
-    Default: '/aws/service/ami-windows-latest/Windows_Server-2022-English-Full-Base'
-    Description: CA(s) SSM Parameter Value to grab the latest AMI ID
-    Type: String
-  DomainDNSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+\..+'
-    Description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
-    MaxLength: '255'
-    MinLength: '2'
-    Type: String
-  DomainNetBIOSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+'
-    Description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
-    MaxLength: '15'
-    MinLength: '1'
-    Type: String
-  DomainController1IP:
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP of DNS server that can resolve domain (Must be accessible)
-    Type: String
-  DomainController2IP:
-    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$
-    Description: IP of DNS server that can resolve domain (Must be accessible)
-    Type: String
-  AdministratorSecret:
-    Description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins or AWS Delegated Enterprise Certificate Authority Administrators)
-    Type: String
-  DirectoryType:
-    Description: Type of Active Directory the CA(s) will be integrated with, AWS Managed Microsoft AD or Self Managed AD
-    AllowedValues:
-      - 'AWSManaged'
-      - 'SelfManaged'
-    Type: String
-  CADeploymentType:
-    AllowedValues:
-      - 'One-Tier'
-      - 'Two-Tier'
-    Default: 'Two-Tier'
-    Description: Deploy Two Tier (Offline Root with Subordinate Enterprise CA) or One Tier (Enterprise Root CA) PKI Infrastructure
-    Type: String
-  OrCaServerNetBIOSName:
-    AllowedPattern: '[a-zA-Z0-9\-]+'
-    Description: NetBIOS name of the Offline Root CA server (Only Used For Two Tier PKI) (up to 15 characters)
-    MaxLength: '15'
-    MinLength: '1'
-    Type: String
-    Default: ORCA1
   EntCaServerNetBIOSName:
     AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: ENTCA1
     Description: NetBIOS name of the Enterprise Root or Subordinate CA server (up to 15 characters)
     MaxLength: '15'
     MinLength: '1'
     Type: String
-    Default: ENTCA1
-  CaKeyLength:
-    Description: CA(s) Cryptographic Provider Key Length
+  KeyPairName:
+    Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
+    Type: AWS::EC2::KeyPair::KeyName
+  OrCaDataDriveSizeGiB:
+    Default: '2'
+    Description: Size of the Data Drive in GiB for the Offline Root CA (Only Used For Two Tier PKI)
+    Type: Number
+  OrCaServerInstanceType:
     AllowedValues:
-      - '2048'
-      - '4096'
-    Default: '2048'
+      - t3.small
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - m5.large
+      - m5.xlarge
+      - m5.2xlarge
+      - m5.4xlarge
+    Default: t3.medium
+    Description: Amazon EC2 instance type for the Offline Root CA instance (Only Used For Two Tier PKI)
     Type: String
-  CaHashAlgorithm:
-    Description: CA(s) Hash Algorithm for Signing Certificates
-    AllowedValues:
-      - 'SHA256'
-      - 'SHA384'
-      - 'SHA512'
-    Default: 'SHA256'
+  OrCaServerNetBIOSName:
+    AllowedPattern: '[a-zA-Z0-9\-]+'
+    Default: ORCA1
+    Description: NetBIOS name of the Offline Root CA server (Only Used For Two Tier PKI) (up to 15 characters)
+    MaxLength: '15'
+    MinLength: '1'
     Type: String
   OrCaValidityPeriodUnits:
-    Description: Validity Period in Years (Only Used For Two Tier PKI)
     Default: '10'
-    Type: String
-  CaValidityPeriodUnits:
-    Description: Validity Period in Years
-    Default: '5'
-    Type: String
-  UseS3ForCRL:
-    Description: Store CA CRL(s) in an S3 bucket
-    AllowedValues:
-      - 'Yes'
-      - 'No'
-    Default: 'No'
-    Type: String
-  S3CRLBucketName:
-    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    Default: examplebucket
-    Description: S3 bucket name for CA CRL(s) storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
+    Description: Validity Period in Years (Only Used For Two Tier PKI)
     Type: String
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
@@ -272,6 +261,27 @@ Parameters:
     Default: quickstart-microsoft-pki/
     Description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/)
     Type: String
+  S3CRLBucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    Default: examplebucket
+    Description: S3 bucket name for CA CRL(s) storage. Bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-)
+    Type: String
+  UseS3ForCRL:
+    AllowedValues:
+      - 'Yes'
+      - 'No'
+    Default: 'No'
+    Description: Store CA CRL(s) in an S3 bucket
+    Type: String
+  VPCCIDR:
+    AllowedPattern: ^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\/(1[6-9]|2[0-8]))$
+    ConstraintDescription: CIDR block parameter must be in the form x.x.x.x/16-28
+    Default: 10.0.0.0/16
+    Description: CIDR Block for the VPC
+    Type: String
+  VPCID:
+    Description: ID of the VPC (e.g., vpc-0343606e)
+    Type: AWS::EC2::VPC::Id
 Rules:
   SubnetsInVPC:
     Assertions:
@@ -309,29 +319,30 @@ Resources:
               - !Sub '${QSS3BucketName}-${AWS::Region}'
               - !Ref QSS3BucketName
       Parameters:
-        VPCCIDR: !Ref 'VPCCIDR'
-        VPCID: !Ref 'VPCID'
-        EntCaServerSubnet: !Ref 'CaServerSubnet'
-        DomainMembersSG: !Ref 'DomainMembersSG'
-        EntCaServerInstanceType: !Ref 'EntCaServerInstanceType'
-        EntCaDataDriveSizeGiB: !Ref 'EntCaDataDriveSizeGiB'
-        KeyPairName: !Ref 'KeyPairName'
-        AMI: !Ref 'AMI'
-        DomainDNSName: !Ref 'DomainDNSName'
-        DomainNetBIOSName: !Ref 'DomainNetBIOSName'
-        DomainController1IP: !Ref 'DomainController1IP'
-        DomainController2IP: !Ref 'DomainController2IP'
-        AdministratorSecret: !Ref 'AdministratorSecret'
+        AdministratorSecret: !Ref AdministratorSecret
+        AMI: !Ref AMI
         DirectoryType: !Ref DirectoryType
-        EntCaServerNetBIOSName: !Ref 'EntCaServerNetBIOSName'
-        EntCaKeyLength: !Ref 'CaKeyLength'
-        EntCaHashAlgorithm: !Ref 'CaHashAlgorithm'
-        EntCaValidityPeriodUnits: !Ref 'CaValidityPeriodUnits'
-        UseS3ForCRL: !Ref 'UseS3ForCRL'
-        S3CRLBucketName: !Ref 'S3CRLBucketName'
-        QSS3BucketName: !Ref 'QSS3BucketName'
-        QSS3BucketRegion: !Ref 'QSS3BucketRegion'
-        QSS3KeyPrefix: !Ref 'QSS3KeyPrefix'
+        DomainController1IP: !Ref DomainController1IP
+        DomainController2IP: !Ref DomainController2IP
+        DomainMembersSG: !Ref DomainMembersSG
+        DomainDNSName: !Ref DomainDNSName
+        DomainNetBIOSName: !Ref DomainNetBIOSName
+        EnableAdvancedAudtingandMetrics: !Ref EnableAdvancedAudtingandMetrics
+        EntCaDataDriveSizeGiB: !Ref EntCaDataDriveSizeGiB
+        EntCaHashAlgorithm: !Ref CaHashAlgorithm
+        EntCaKeyLength: !Ref CaKeyLength
+        EntCaServerInstanceType: !Ref EntCaServerInstanceType
+        EntCaServerNetBIOSName: !Ref EntCaServerNetBIOSName
+        EntCaServerSubnet: !Ref CaServerSubnet
+        EntCaValidityPeriodUnits: !Ref CaValidityPeriodUnits
+        KeyPairName: !Ref KeyPairName
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix
+        S3CRLBucketName: !Ref S3CRLBucketName
+        UseS3ForCRL: !Ref UseS3ForCRL
+        VPCCIDR: !Ref VPCCIDR
+        VPCID: !Ref VPCID
   TwoTierCAStack:
     Type: AWS::CloudFormation::Stack
     Condition: ShouldCreateTwoTierPkiResource
@@ -348,33 +359,34 @@ Resources:
               - !Sub '${QSS3BucketName}-${AWS::Region}'
               - !Ref QSS3BucketName
       Parameters:
-        VPCCIDR: !Ref 'VPCCIDR'
-        VPCID: !Ref 'VPCID'
-        OrCaServerSubnet: !Ref 'CaServerSubnet'
-        SubCaServerSubnet: !Ref 'CaServerSubnet'
-        DomainMembersSG: !Ref 'DomainMembersSG'
-        OrCaServerInstanceType: !Ref 'OrCaServerInstanceType'
-        OrCaDataDriveSizeGiB: !Ref 'OrCaDataDriveSizeGiB'
-        SubCaServerInstanceType: !Ref 'EntCaServerInstanceType'
-        SubCaDataDriveSizeGiB: !Ref 'EntCaDataDriveSizeGiB'
-        KeyPairName: !Ref 'KeyPairName'
-        AMI: !Ref 'AMI'
-        DomainDNSName: !Ref 'DomainDNSName'     
-        DomainNetBIOSName: !Ref 'DomainNetBIOSName'   
-        DomainController1IP: !Ref 'DomainController1IP'
-        DomainController2IP: !Ref 'DomainController2IP'
-        AdministratorSecret: !Ref 'AdministratorSecret'
+        VPCCIDR: !Ref VPCCIDR
+        VPCID: !Ref VPCID
+        OrCaServerSubnet: !Ref CaServerSubnet
+        SubCaServerSubnet: !Ref CaServerSubnet
+        DomainMembersSG: !Ref DomainMembersSG
+        OrCaServerInstanceType: !Ref OrCaServerInstanceType
+        OrCaDataDriveSizeGiB: !Ref OrCaDataDriveSizeGiB
+        SubCaServerInstanceType: !Ref EntCaServerInstanceType
+        SubCaDataDriveSizeGiB: !Ref EntCaDataDriveSizeGiB
+        EnableAdvancedAudtingandMetrics: !Ref EnableAdvancedAudtingandMetrics
+        KeyPairName: !Ref KeyPairName
+        AMI: !Ref AMI
+        DomainDNSName: !Ref DomainDNSName
+        DomainNetBIOSName: !Ref DomainNetBIOSName
+        DomainController1IP: !Ref DomainController1IP
+        DomainController2IP: !Ref DomainController2IP
+        AdministratorSecret: !Ref AdministratorSecret
         DirectoryType: !Ref DirectoryType
-        OrCaServerNetBIOSName: !Ref 'OrCaServerNetBIOSName'
-        SubCaServerNetBIOSName: !Ref 'EntCaServerNetBIOSName'  
-        OrCaKeyLength: !Ref 'CaKeyLength'
-        SubCaKeyLength: !Ref 'CaKeyLength'
-        OrCaHashAlgorithm: !Ref 'CaHashAlgorithm'
-        SubCaHashAlgorithm: !Ref 'CaHashAlgorithm'
-        OrCaValidityPeriodUnits: !Ref 'OrCaValidityPeriodUnits'
-        SubCaValidityPeriodUnits: !Ref 'CaValidityPeriodUnits'
-        UseS3ForCRL: !Ref 'UseS3ForCRL'
-        S3CRLBucketName: !Ref 'S3CRLBucketName'
-        QSS3BucketName: !Ref 'QSS3BucketName'
-        QSS3BucketRegion: !Ref 'QSS3BucketRegion'
-        QSS3KeyPrefix: !Ref 'QSS3KeyPrefix'
+        OrCaServerNetBIOSName: !Ref OrCaServerNetBIOSName
+        SubCaServerNetBIOSName: !Ref EntCaServerNetBIOSName
+        OrCaKeyLength: !Ref CaKeyLength
+        SubCaKeyLength: !Ref CaKeyLength
+        OrCaHashAlgorithm: !Ref CaHashAlgorithm
+        SubCaHashAlgorithm: !Ref CaHashAlgorithm
+        OrCaValidityPeriodUnits: !Ref OrCaValidityPeriodUnits
+        SubCaValidityPeriodUnits: !Ref CaValidityPeriodUnits
+        UseS3ForCRL: !Ref UseS3ForCRL
+        S3CRLBucketName: !Ref S3CRLBucketName
+        QSS3BucketName: !Ref QSS3BucketName
+        QSS3BucketRegion: !Ref QSS3BucketRegion
+        QSS3KeyPrefix: !Ref QSS3KeyPrefix

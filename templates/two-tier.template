@@ -52,6 +52,7 @@ Metadata:
           - SubCaValidityPeriodUnits
           - UseS3ForCRL
           - S3CRLBucketName
+          - EnableAdvancedAudtingandMetrics
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -77,6 +78,8 @@ Metadata:
         default: Domain NetBIOS Name
       EbsEncryptionKmsKeyId:
         default: KMS Key for EBS Encryption
+      EnableAdvancedAudtingandMetrics:
+        default: Advanced Auditing and Metrics
       KeyPairName:
         default: Key Pair Name
       OrCaDataDriveSizeGiB:
@@ -163,6 +166,13 @@ Parameters:
     Default: alias/aws/ebs
     Description: The identifier of the AWS KMS key to use for Amazon EBS encryption. You can specify the KMS key using any of the following; Key ID, Key alias, Key ARN, Alias ARN
     Type: String
+  EnableAdvancedAudtingandMetrics:
+    Description: Enable advanced auditing and metrics and upload them to CloudWatch using the Amazon Kinesis Agent for Microsoft Windows
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Type: String
+    Default: 'false'
   KeyPairName:
     Description: Name of the key pair that you will use to securely connect to your EC2 instance after it launches.
     Type: AWS::EC2::KeyPair::KeyName
@@ -393,7 +403,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - !Ref 'AdministratorSecret'
+                  - !Ref AdministratorSecret
           PolicyName: AWS-Mgd-AD-Secret-Policy
       Path: /
       ManagedPolicyArns:
@@ -412,7 +422,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref 'InstanceRole'
+        - !Ref InstanceRole
       Path: /
   S3CrlRolePolicy:
     Type: AWS::IAM::Policy
@@ -435,7 +445,7 @@ Resources:
               - s3:DeleteObject
             Resource: !Sub 'arn:${AWS::Partition}:s3:::${S3CRLBucketName}/*'
       Roles:
-        - !Ref 'InstanceRole'
+        - !Ref InstanceRole
   AWSQuickstartCA:
     Type: AWS::SSM::Document
     Properties:
@@ -443,16 +453,12 @@ Resources:
       Content:
         schemaVersion: "0.3"
         description: Deploy Two Tier PKI with SSM Automation
-        parameters: 
-          VPCCIDR:
-            default: 10.0.0.0/16
-            description: CIDR block for private subnet 1 located in Availability Zone 1.
+        parameters:
+          AdministratorSecret:
+            description: AWS Secrets Parameter Name that has Password and User namer for the domain administrator.
             type: String
-          OrCaServerNetBIOSName:
-            description: NetBIOS name of the Offline Root CA server (up to 15 characters)
-            type: String
-          SubCaServerNetBIOSName:
-            description: NetBIOS name of the Subordinate CA server (up to 15 characters)
+          DirectoryType:
+            description: Type of Active Directory CA will be integrated with
             type: String
           DomainController1IP:
             description: Fixed private IP for the first Active Directory server located in Availability Zone 1
@@ -460,42 +466,27 @@ Resources:
           DomainController2IP:
             description: Fixed private IP for the first Active Directory server located in Availability Zone 1
             type: String
-          AdministratorSecret:
-            description: AWS Secrets Parameter Name that has Password and User namer for the domain administrator.
-            type: String
-          DomainDNSName: 
+          DomainDNSName:
             description: Fully qualified domain name (FQDN) of the forest root domain e.g. example.com
             type: String
-          DomainNetBIOSName: 
+          DomainNetBIOSName:
             description: NetBIOS name of the domain (up to 15 characters) for users of earlier versions of Windows e.g. EXAMPLE
             type: String
-          OrCaKeyLength:
-            description: Offline Root CA Key Length
+          EnableAdvancedAudtingandMetrics:
+            description: Enable advanced auditing and metrics
             type: String
           OrCaHashAlgorithm:
             description: Offline Root CA Hash Algorithm
             type: String
+          OrCaKeyLength:
+            description: Offline Root CA Key Length
+            type: String
+          OrCaServerNetBIOSName:
+            description: NetBIOS name of the Offline Root CA server (up to 15 characters)
+            type: String
           OrCaValidityPeriodUnits:
             description: Offline Root CA Certificate Validity Period in Years
             type: String
-          SubCaKeyLength:
-            description: Subordinate CA Key Length
-            type: String
-          SubCaHashAlgorithm:
-            description: Subordinate CA Hash Algorithm
-            type: String
-          SubCaValidityPeriodUnits:
-            description: Subordinate CA Certificate Validity Period in Years
-            type: String
-          UseS3ForCRL:
-            description: Use S3 for Enterprise Root CA CRL location
-            type: String
-          S3CRLBucketName:
-            description: S3 bucket name for Enterprise Root CA CRL
-            type: String
-          DirectoryType:
-            description: Type of Active Directory CA will be integrated with
-            type: String            
           QSS3BucketName:
             default: aws-quickstart
             description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
@@ -508,12 +499,34 @@ Resources:
             default: quickstart-microsoft-pki/
             description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
             type: String
+          S3CRLBucketName:
+            description: S3 bucket name for Enterprise Root CA CRL
+            type: String
           StackName:
             description: Stack Name Input for cfn resource signal
+            type: String
+          SubCaHashAlgorithm:
+            description: Subordinate CA Hash Algorithm
+            type: String
+          SubCaKeyLength:
+            description: Subordinate CA Key Length
+            type: String
+          SubCaServerNetBIOSName:
+            description: NetBIOS name of the Subordinate CA server (up to 15 characters)
+            type: String
+          SubCaValidityPeriodUnits:
+            description: Subordinate CA Certificate Validity Period in Years
             type: String
           URLSuffix:
             default: amazonaws.com
             description: AWS URL suffix
+            type: String
+          UseS3ForCRL:
+            description: Use S3 for Enterprise Root CA CRL location
+            type: String
+          VPCCIDR:
+            default: 10.0.0.0/16
+            description: CIDR block for private subnet 1 located in Availability Zone 1.
             type: String
         mainSteps:
         - name: CaInstanceIds
@@ -596,7 +609,11 @@ Resources:
                     },
                     @{
                         Name    = 'ComputerManagementDsc'
-                        Version = '8.4.0'
+                        Version = '8.5.0'
+                    },
+                    @{
+                        Name = 'AuditPolicyDsc'
+                        Version = '1.4.0.0'
                     }
                 )
 
@@ -650,6 +667,7 @@ Resources:
           nextStep: configureInstances
         - name: configureInstances
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -671,6 +689,7 @@ Resources:
           nextStep: configureOrCaMof
         - name: configureOrCaMof
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -712,6 +731,7 @@ Resources:
           nextStep: InstallOrCa
         - name: InstallOrCa
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -732,6 +752,7 @@ Resources:
           nextStep: configureSubCaMof
         - name: configureSubCaMof
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -774,6 +795,7 @@ Resources:
           nextStep: InstallSubCa
         - name: InstallSubCa
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -794,6 +816,7 @@ Resources:
           nextStep: CertIssueSubCa
         - name: CertIssueSubCa
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -811,10 +834,17 @@ Resources:
                 }
                 $Secret = Get-SecretInfo -Domain '{{DomainDNSName}}' -SecretArn '{{AdministratorSecret}}'
                 Invoke-TwoTierSubCaCertIssue -Credentials $Secret.Credentials -DirectoryType '{{DirectoryType}}' -DomainDNSName '{{DomainDNSName}}'
+                
+                If ('{{EnableAdvancedAudtingandMetrics}}' -eq 'true') {
+                  Set-AuditDscConfiguration
+                  Set-LogsAndMetricsCollection -Stackname '{{StackName}}'
+                }                
+                
                 Invoke-Cleanup -VPCCIDR '{{VPCCIDR}}'
           nextStep: FinalizeSubCa
         - name: FinalizeSubCa
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -832,6 +862,12 @@ Resources:
                 }
                 $Secret = Get-SecretInfo -Domain {{DomainNetBIOSName}} -SecretArn {{AdministratorSecret}}
                 Invoke-TwoTierSubCaConfig -Credentials $Secret.Credentials -DirectoryType '{{DirectoryType}}' -S3CRLBucketName '{{S3CRLBucketName}}' -UseS3ForCRL '{{UseS3ForCRL}}'
+                
+                If ('{{EnableAdvancedAudtingandMetrics}}' -eq 'true') {
+                  Set-AuditDscConfiguration
+                  Set-LogsAndMetricsCollection -Stackname '{{StackName}}'
+                }
+
                 Invoke-Cleanup -VPCCIDR '{{VPCCIDR}}'
         - name: CFNSignalEnd
           action: aws:branch
@@ -871,32 +907,34 @@ Resources:
   ORCA:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: !Ref 'AMI'
-      IamInstanceProfile: !Ref 'InstanceProfile'
-      InstanceType: !Ref 'OrCaServerInstanceType'
-      SubnetId: !Ref 'OrCaServerSubnet'
+      ImageId: !Ref AMI
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: !Ref OrCaServerInstanceType
+      SubnetId: !Ref OrCaServerSubnet
       Tags:
         - Key: Name
-          Value: !Ref 'OrCaServerNetBIOSName'
+          Value: !Ref OrCaServerNetBIOSName
+        - Key: Role
+          Value: Offline Root CA
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
             VolumeSize: 60
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
         - DeviceName: /dev/xvdf
           Ebs:
-            VolumeSize: !Ref 'OrCaDataDriveSizeGiB'
+            VolumeSize: !Ref OrCaDataDriveSizeGiB
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
       SecurityGroupIds:
-        - !Ref 'CaSG'
-        - !Ref 'DomainMembersSG'
-      KeyName: !Ref 'KeyPairName'
+        - !Ref CaSG
+        - !Ref DomainMembersSG
+      KeyName: !Ref KeyPairName
   SubCA:
     Type: AWS::EC2::Instance
     DependsOn: ORCA
@@ -905,88 +943,69 @@ Resources:
         Timeout: PT45M
         Count: 1
     Properties:
-      ImageId: !Ref 'AMI'
-      IamInstanceProfile: !Ref 'InstanceProfile'
-      InstanceType: !Ref 'SubCaServerInstanceType'
-      SubnetId: !Ref 'SubCaServerSubnet'
+      ImageId: !Ref AMI
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: !Ref SubCaServerInstanceType
+      SubnetId: !Ref SubCaServerSubnet
       Tags:
         - Key: Name
-          Value: !Ref 'SubCaServerNetBIOSName'
+          Value: !Ref SubCaServerNetBIOSName
         - Key: Domain
-          Value: !Ref 'DomainDNSName'
+          Value: !Ref DomainDNSName
+        - Key: Role
+          Value: Subordinate Enterprise CA
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
             VolumeSize: 60
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
         - DeviceName: /dev/xvdf
           Ebs:
-            VolumeSize: !Ref 'SubCaDataDriveSizeGiB'
+            VolumeSize: !Ref SubCaDataDriveSizeGiB
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
       SecurityGroupIds:
-        - !Ref 'CaSG'
-        - !Ref 'DomainMembersSG'
-      KeyName: !Ref 'KeyPairName'
-      UserData: !Base64
-        Fn::Join:
-          - ''
-          - - "<powershell>\n"
-            - 'Start-SSMAutomationExecution -DocumentName '
-            - !Sub '"${AWSQuickstartCA}"'
-            - ' -Parameter @{'
-            - '"VPCCIDR"='
-            - !Sub '"${VPCCIDR}"'
-            - ';"AdministratorSecret"='
-            - !Sub '"${AdministratorSecret}"'
-            - ';"OrCaServerNetBIOSName"='
-            - !Sub '"${OrCaServerNetBIOSName}"'
-            - ';"SubCaServerNetBIOSName"='
-            - !Sub '"${SubCaServerNetBIOSName}"'
-            - ';"DomainController1IP"='
-            - !Sub '"${DomainController1IP}"'
-            - ';"DomainController2IP"='
-            - !Sub '"${DomainController2IP}"'
-            - ';"DomainDNSName"='
-            - !Sub '"${DomainDNSName}"'
-            - ';"DomainNetBIOSName"='
-            - !Sub '"${DomainNetBIOSName}"'
-            - ';"OrCaKeyLength"='
-            - !Sub '"${OrCaKeyLength}"'
-            - ';"OrCaHashAlgorithm"='
-            - !Sub '"${OrCaHashAlgorithm}"'
-            - ';"OrCaValidityPeriodUnits"='
-            - !Sub '"${OrCaValidityPeriodUnits}"'
-            - ';"SubCaKeyLength"='
-            - !Sub '"${SubCaKeyLength}"'
-            - ';"SubCaHashAlgorithm"='
-            - !Sub '"${SubCaHashAlgorithm}"'
-            - ';"SubCaValidityPeriodUnits"='
-            - !Sub '"${SubCaValidityPeriodUnits}"'
-            - ';"UseS3ForCRL"='
-            - !Sub '"${UseS3ForCRL}"'
-            - ';"S3CRLBucketName"='
-            - !Sub '"${S3CRLBucketName}"'
-            - ';"DirectoryType"='
-            - !Sub '"${DirectoryType}"'
-            - ';"QSS3BucketName"='
-            - !If [UsingDefaultBucket, !Sub '"${QSS3BucketName}-${AWS::Region}"', !Sub '"${QSS3BucketName}"']
-            - ';"QSS3BucketRegion"='
-            - !If [UsingDefaultBucket, !Sub '"${AWS::Region}"', !Sub '"${QSS3BucketRegion}"']
-            - ';"QSS3KeyPrefix"='
-            - !Sub '"${QSS3KeyPrefix}"'
-            - ';"StackName"='
-            - !Sub '"${AWS::StackName}"'
-            - ';"URLSuffix"='
-            - !Sub '"${AWS::URLSuffix}"'
-            - '}'
-            - "\n"
-            - "</powershell>\n"
+        - !Ref CaSG
+        - !Ref DomainMembersSG
+      KeyName: !Ref KeyPairName
+      UserData:
+        Fn::Base64: !Sub
+            - |
+                <powershell>
+                $Params = @{
+                    AdministratorSecret = '${AdministratorSecret}'
+                    DirectoryType = '${DirectoryType}'
+                    DomainController1IP = '${DomainController1IP}'
+                    DomainController2IP = '${DomainController2IP}'
+                    DomainDNSName = '${DomainDNSName}'
+                    DomainNetBIOSName = '${DomainNetBIOSName}'
+                    EnableAdvancedAudtingandMetrics = '${EnableAdvancedAudtingandMetrics}'
+                    OrCaHashAlgorithm = '${OrCaHashAlgorithm}'
+                    OrCaKeyLength = '${OrCaKeyLength}'
+                    OrCaServerNetBIOSName = '${OrCaServerNetBIOSName}'
+                    OrCaValidityPeriodUnits = '${OrCaValidityPeriodUnits}'
+                    QSS3BucketName = '${QSS3BucketName}'
+                    QSS3BucketRegion =  '${QSS3BucketRegion}'
+                    QSS3KeyPrefix = '${QSS3KeyPrefix}'
+                    S3CRLBucketName = '${S3CRLBucketName}'
+                    StackName = '${AWS::StackName}'
+                    SubCaHashAlgorithm = '${SubCaHashAlgorithm}'
+                    SubCaKeyLength = '${SubCaKeyLength}'
+                    SubCaServerNetBIOSName = '${SubCaServerNetBIOSName}'
+                    SubCaValidityPeriodUnits = '${SubCaValidityPeriodUnits}'
+                    URLSuffix = '${AWS::URLSuffix}'
+                    UseS3ForCRL = '${UseS3ForCRL}'
+                    VPCCIDR = '${VPCCIDR}'
+                }
+                Start-SSMAutomationExecution -DocumentName '${AWSQuickstartCA}' -Parameter $Params
+                </powershell>
+            - QSS3BucketName: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Sub '${QSS3BucketName}']
+              QSS3BucketRegion: !If [UsingDefaultBucket, !Sub '${AWS::Region}', !Sub '${QSS3BucketRegion}']
   CaSG:
     Type: AWS::EC2::SecurityGroup
     Metadata:
@@ -1040,11 +1059,11 @@ Resources:
       CidrIp: !Ref VPCCIDR
 Outputs:
   CASGID:
-    Value: !Ref 'CaSG'
+    Value: !Ref CaSG
     Description: CA Security Group ID
   OrCaInstanceId:
-    Value: !Ref 'ORCA'
+    Value: !Ref ORCA
     Description: ORCA instance ID
   SubCAInstanceId:
-    Value: !Ref 'SubCA'
+    Value: !Ref SubCA
     Description: SubCA instance ID

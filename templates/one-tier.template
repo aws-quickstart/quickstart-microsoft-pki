@@ -45,6 +45,7 @@ Metadata:
           - EntCaValidityPeriodUnits
           - UseS3ForCRL
           - S3CRLBucketName
+          - EnableAdvancedAudtingandMetrics
       - Label:
           default: AWS Quick Start Configuration
         Parameters:
@@ -70,6 +71,8 @@ Metadata:
         default: Domain NetBIOS Name
       EbsEncryptionKmsKeyId:
         default: KMS Key for EBS Encryption
+      EnableAdvancedAudtingandMetrics:
+        default: Advanced Auditing and Metrics
       EntCaDataDriveSizeGiB:
         default: Enterprise Root CA Data Drive Size
       EntCaHashAlgorithm:
@@ -142,6 +145,13 @@ Parameters:
     Default: alias/aws/ebs
     Description: The identifier of the AWS KMS key to use for Amazon EBS encryption. You can specify the KMS key using any of the following; Key ID, Key alias, Key ARN, Alias ARN
     Type: String
+  EnableAdvancedAudtingandMetrics:
+    Description: Enable advanced auditing and metrics and upload them to CloudWatch using the Amazon Kinesis Agent for Microsoft Windows
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Type: String
+    Default: 'false'
   EntCaDataDriveSizeGiB:
     Default: '2'
     Description: Size of the Data Drive in GiB for the Enterprise Root CA
@@ -316,7 +326,7 @@ Resources:
               - Effect: Allow
                 Action: cloudformation:SignalResource
                 Resource: !Sub 'arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
-          PolicyName: AWS-Mgmt-Quick-Start-Policy
+          PolicyName: AWS-Quick-Start-Policy
         - PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -325,8 +335,8 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:DescribeSecret
                 Resource:
-                  - !Ref 'AdministratorSecret'
-          PolicyName: AWS-Mgd-AD-Secret-Policy
+                  - !Ref AdministratorSecret
+          PolicyName: AWS-Quick-Start-Secret-Policy
       Path: /
       ManagedPolicyArns:
         - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
@@ -344,7 +354,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref 'InstanceRole'
+        - !Ref InstanceRole
       Path: /
   S3CrlRolePolicy:
     Type: AWS::IAM::Policy
@@ -367,7 +377,7 @@ Resources:
               - s3:DeleteObject
             Resource: !Sub 'arn:${AWS::Partition}:s3:::${S3CRLBucketName}/*'
       Roles:
-        - !Ref 'InstanceRole'
+        - !Ref InstanceRole
   AWSQuickstartECA:
     Type: AWS::SSM::Document
     Properties:
@@ -375,10 +385,9 @@ Resources:
       Content:
         schemaVersion: '0.3'
         description: Deploy Single Tier PKI with SSM Automation
-        parameters: 
-          VPCCIDR:
-            default: 10.0.0.0/16
-            description: "CIDR Block for the VPC"
+        parameters:
+          AdministratorSecret:
+            description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
             type: String
           DirectoryType:
             description: Type of Active Directory CA will be integrated with
@@ -395,46 +404,44 @@ Resources:
           DomainController2IP:
             description: IP of DNS server that can resolve domain (Must be accessible)
             type: String
-          AdministratorSecret:
-            description: ARN for the CA Install Credentials Secret used to to install the CA (Must be a member of Enterpise Admins)
-            type: String
-          EntCaServerNetBIOSName:
-            description: NetBIOS name of the Enterprise Root or Subordinate CA server (up to 15 characters)
+          EnableAdvancedAudtingandMetrics:
+            description: Enable advanced auditing and metrics
+            type: String            
+          EntCaHashAlgorithm:
+            description: Enterprise Root CA Hash Algorithm for Siging Certificates
             type: String
           EntCaKeyLength:
             description: Enterprise Root CA Cryptographic Provider Key Length
             type: String
-          EntCaHashAlgorithm:
-            description: Enterprise Root CA Hash Algorithm for Siging Certificates
-            type: String
           EntCaValidityPeriodUnits:
             description: Validity Period in Years
             type: String
-          UseS3ForCRL:
-            description: Store CA CRL(s) in an S3 bucket
+          EntCaServerNetBIOSName:
+            description: NetBIOS name of the Enterprise Root or Subordinate CA server (up to 15 characters)
+            type: String            
+          QSS3BucketName:
+            description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
+            type: String
+          QSS3BucketRegion:
+            description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.
+            type: String
+          QSS3KeyPrefix:
+            description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
             type: String
           S3CRLBucketName:
             description: S3 bucket name for CA CRL storage.
             type: String
-          QSS3BucketName:
-            default: aws-quickstart
-            description: S3 bucket name for the Quick Start assets. Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
-            type: String
-          QSS3BucketRegion:
-            default: us-east-1
-            description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.
-            type: String
-          QSS3KeyPrefix:
-            default: quickstart-microsoft-pki/
-            description: S3 key prefix for the Quick Start assets. Quick Start key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slash (/).
-            type: String
           StackName:
-            default: ''
             description: Stack Name Input for cfn resource signal
             type: String
           URLSuffix:
-            default: amazonaws.com
             description: AWS URL suffix
+            type: String
+          UseS3ForCRL:
+            description: Store CA CRL(s) in an S3 bucket
+            type: String
+          VPCCIDR:
+            description: "CIDR Block for the VPC"
             type: String
         mainSteps:
         - name: entCAInstanceId
@@ -481,7 +488,11 @@ Resources:
                     },
                     @{
                         Name    = 'ComputerManagementDsc'
-                        Version = '8.4.0'
+                        Version = '8.5.0'
+                    },
+                    @{
+                        Name = 'AuditPolicyDsc'
+                        Version = '1.4.0.0'
                     }
                 )
 
@@ -535,6 +546,7 @@ Resources:
           nextStep: configureInstance
         - name: configureInstance
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -556,6 +568,7 @@ Resources:
           nextStep: configureMof
         - name: configureMof
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -598,6 +611,7 @@ Resources:
           nextStep: InstallEntCa
         - name: InstallEntCa
           action: aws:runCommand
+          onFailure: step:signalfailure
           inputs:
             DocumentName: AWS-RunPowerShellScript
             InstanceIds:
@@ -615,6 +629,11 @@ Resources:
                 }
                 $Secret = Get-SecretInfo -Domain '{{DomainNetBIOSName}}' -SecretArn '{{AdministratorSecret}}'
                 Invoke-EnterpriseCaConfig -Credentials $Secret.Credentials -DirectoryType '{{DirectoryType}}' -EntCaCommonName '{{EntCaServerNetBIOSName}}' -EntCaHashAlgorithm '{{EntCaHashAlgorithm}}' -EntCaKeyLength '{{EntCaKeyLength}}' -EntCaValidityPeriodUnits '{{EntCaValidityPeriodUnits}}' -S3CRLBucketName '{{S3CRLBucketName}}' -UseS3ForCRL '{{UseS3ForCRL}}'
+
+                If ('{{EnableAdvancedAudtingandMetrics}}' -eq 'true') {
+                  Set-AuditDscConfiguration
+                  Set-LogsAndMetricsCollection -Stackname '{{StackName}}'
+                }
                 Invoke-Cleanup -VPCCIDR '{{VPCCIDR}}'
         - name: CFNSignalEnd
           action: aws:branch
@@ -658,80 +677,65 @@ Resources:
         Timeout: PT30M
         Count: 1
     Properties:
-      ImageId: !Ref 'AMI'
-      IamInstanceProfile: !Ref 'InstanceProfile'
-      InstanceType: !Ref 'EntCaServerInstanceType'
-      SubnetId: !Ref 'EntCaServerSubnet'
+      ImageId: !Ref AMI
+      IamInstanceProfile: !Ref InstanceProfile
+      InstanceType: !Ref EntCaServerInstanceType
+      SubnetId: !Ref EntCaServerSubnet
       Tags:
         - Key: Name
-          Value: !Ref 'EntCaServerNetBIOSName'
+          Value: !Ref EntCaServerNetBIOSName
         - Key: Domain
-          Value: !Ref 'DomainDNSName'
+          Value: !Ref DomainDNSName
+        - Key: Role
+          Value: Enterprise CA        
       BlockDeviceMappings:
         - DeviceName: /dev/sda1
           Ebs:
             VolumeSize: 60
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
         - DeviceName: /dev/xvdf
           Ebs:
-            VolumeSize: !Ref 'EntCaDataDriveSizeGiB'
+            VolumeSize: !Ref EntCaDataDriveSizeGiB
             VolumeType: gp3
             Encrypted: true
-            KmsKeyId: !Ref 'EbsEncryptionKmsKeyId'
+            KmsKeyId: !Ref EbsEncryptionKmsKeyId
             DeleteOnTermination: true
       SecurityGroupIds:
-        - !Ref 'CaSG'
-        - !Ref 'DomainMembersSG'
-      KeyName: !Ref 'KeyPairName'
-      UserData: !Base64
-        Fn::Join:
-          - ''
-          - - "<powershell>\n"
-            - 'Start-SSMAutomationExecution -DocumentName '
-            - !Sub '"${AWSQuickstartECA}"'
-            - ' -Parameter @{'
-            - '"VPCCIDR"='
-            - !Sub '"${VPCCIDR}"'
-            - ';"DirectoryType"='
-            - !Sub '"${DirectoryType}"'
-            - ';"DomainDNSName"='
-            - !Sub '"${DomainDNSName}"'
-            - ';"DomainNetBIOSName"='
-            - !Sub '"${DomainNetBIOSName}"'
-            - ';"DomainController1IP"='
-            - !Sub '"${DomainController1IP}"'
-            - ';"DomainController2IP"='
-            - !Sub '"${DomainController2IP}"'
-            - ';"AdministratorSecret"='
-            - !Sub '"${AdministratorSecret}"'
-            - ';"EntCaServerNetBIOSName"='
-            - !Sub '"${EntCaServerNetBIOSName}"'
-            - ';"EntCaKeyLength"='
-            - !Sub '"${EntCaKeyLength}"'
-            - ';"EntCaHashAlgorithm"='
-            - !Sub '"${EntCaHashAlgorithm}"'
-            - ';"EntCaValidityPeriodUnits"='
-            - !Sub '"${EntCaValidityPeriodUnits}"'
-            - ';"UseS3ForCRL"='
-            - !Sub '"${UseS3ForCRL}"'
-            - ';"S3CRLBucketName"='
-            - !Sub '"${S3CRLBucketName}"'
-            - ';"QSS3BucketName"='
-            - !If [UsingDefaultBucket, !Sub '"${QSS3BucketName}-${AWS::Region}"', !Sub '"${QSS3BucketName}"']
-            - ';"QSS3BucketRegion"='
-            - !If [UsingDefaultBucket, !Sub '"${AWS::Region}"', !Sub '"${QSS3BucketRegion}"']
-            - ';"QSS3KeyPrefix"='
-            - !Sub '"${QSS3KeyPrefix}"'
-            - ';"StackName"='
-            - !Sub '"${AWS::StackName}"'
-            - ';"URLSuffix"='
-            - !Sub '"${AWS::URLSuffix}"'
-            - '}'
-            - "\n"
-            - "</powershell>\n"
+        - !Ref CaSG
+        - !Ref DomainMembersSG
+      KeyName: !Ref KeyPairName
+      UserData: 
+        Fn::Base64: !Sub
+            - |
+                <powershell>
+                $Params = @{
+                    AdministratorSecret = '${AdministratorSecret}'
+                    DirectoryType = '${DirectoryType}'
+                    DomainController1IP = '${DomainController1IP}'
+                    DomainController2IP = '${DomainController2IP}'
+                    DomainDNSName = '${DomainDNSName}'
+                    DomainNetBIOSName = '${DomainNetBIOSName}'
+                    EnableAdvancedAudtingandMetrics = '${EnableAdvancedAudtingandMetrics}'
+                    EntCaHashAlgorithm = '${EntCaHashAlgorithm}'
+                    EntCaKeyLength = '${EntCaKeyLength}'
+                    EntCaServerNetBIOSName = '${EntCaServerNetBIOSName}'
+                    EntCaValidityPeriodUnits = '${EntCaValidityPeriodUnits}'
+                    QSS3BucketName = '${QSS3BucketName}'
+                    QSS3BucketRegion =  '${QSS3BucketRegion}'
+                    QSS3KeyPrefix = '${QSS3KeyPrefix}'
+                    S3CRLBucketName = '${S3CRLBucketName}'
+                    StackName = '${AWS::StackName}'
+                    URLSuffix = '${AWS::URLSuffix}'
+                    UseS3ForCRL = '${UseS3ForCRL}'
+                    VPCCIDR = '${VPCCIDR}'
+                }
+                Start-SSMAutomationExecution -DocumentName '${AWSQuickstartECA}' -Parameter $Params
+                </powershell>
+            - QSS3BucketName: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Sub '${QSS3BucketName}']
+              QSS3BucketRegion: !If [UsingDefaultBucket, !Sub '${AWS::Region}', !Sub '${QSS3BucketRegion}']
   CaSG:
     Type: AWS::EC2::SecurityGroup
     Metadata:
@@ -785,8 +789,8 @@ Resources:
       CidrIp: !Ref VPCCIDR
 Outputs:
   EnterpiseCASGID:
-    Value: !Ref 'CaSG'
+    Value: !Ref CaSG
     Description: Enterpise CA Security Group ID
   EntRootCAInstanceId:
-    Value: !Ref 'EntRootCA'
+    Value: !Ref EntRootCA
     Description: EntRootCA instance ID
