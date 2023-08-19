@@ -1,8 +1,0 @@
-// Replace the content in <>
-// Briefly describe the software. Use consistent and clear branding. 
-
-A public key infrastructure (PKI) creates, manages, distributes, stores, and revokes digital certificates. Windows environments use digital certificates to secure multiple types of connections. Connection types include lookups for Microsoft Active Directory LDAPS (Lightweight Directory Access Protocol over Secure Sockets Layer), Internet Information Services (IIS) HTTPS connections, Exchange Server communications, and Windows Server Update Services (WSUS).
-
-With a Windows-hosted PKI in an AWS account, you can maintain your own certificates. This capability helps you reduce insecure, unsigned network traffic. To deploy a PKI environment on Windows, you install and configure Certificate Authority (CA) roles on one or more Windows servers.
-
-This Quick Start deploys either a one-tier or a two-tier PKI infrastrucuture. With a one-tier infrastructure, a Windows EC2 instance is joined to your Active Directory domain and has the CA roles installed, becoming an Enterprise CA. With a two-tier infrastructure, a Windows EC2 instance is joined to your Active Directory domain, has the CA roles installed, and is promoted to the domain's Root CA; a second Windows EC2 instance is then joined to the domain and becomes a Suborodinate CA, after which the Root CA is powered off. The two-tier PKI model is considered more secure than the one-tier model; since the Root CA remains offline, it can be powered on in the event of the Subordinate CA beconming compromised, and can then generate a new set of keys. The two-tier model also lends itself better to high availability since multiple Subordinate CAs can be added to the environment.
