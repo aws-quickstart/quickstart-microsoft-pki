@@ -1,28 +1,29 @@
+Deploying this Partner Solution for a new virtual private cloud (VPC) with default parameters builds the following {partner-product-short-name} environment in the AWS Cloud.
+
 :xrefstyle: short
-
-Deploying this Partner Solution with default parameters builds the following {partner-product-short-name} environment in the
-AWS Cloud.
-
-// Replace this example diagram with your own. Follow our wiki guidelines: https://w.amazon.com/bin/view/AWS_Quick_Starts/Process_for_PSAs/#HPrepareyourarchitecturediagram. Upload your source PowerPoint file to the GitHub {deployment name}/docs/images/ directory in its repository.
-
 [#architecture1]
 .Partner Solution architecture for {partner-product-short-name} on AWS
-image::../docs/deployment_guide/images/architecture_diagram.png[Architecture]
+image::../docs/deployment_guide/images/image1.png[Architecture1,width=100%,height=100%]
 
-As shown in <<architecture1>>, this Partner Solution sets up the following:
+As shown in <<architecture1>>, the Partner Solution sets up the following:
 
-* A highly available architecture that spans two Availability Zones.*
-* A virtual private cloud (VPC) configured with public and private subnets, according to AWS
-best practices, to provide you with your own virtual network on AWS.*
+* An architecture that spans two Availability Zones.*
+* A VPC configured with public and private subnets, according to AWS best practices, to provide you with your own virtual network on AWS.*
+
 * In the public subnets:
-** Managed network address translation (NAT) gateways to allow outbound
-internet access for resources in the private subnets.*
-** A Linux bastion host in an Auto Scaling group to allow inbound Secure
-Shell (SSH) access to Amazon Elastic Compute Cloud (Amazon EC2) instances in public and private subnets.*
-* In the private subnets:
-** <item>.
-** <item>.
-// Add bullet points for any additional components that are included in the deployment. Ensure that the additional components are shown in the architecture diagram. End each bullet with a period.
-* <describe any additional components>.
+** Managed network address translation (NAT) gateways to allow outbound internet access for resources in the private subnets.*
+** A Remote Desktop Gateway (RD Gateway) instance in an Auto Scaling group to allow inbound Remote Desktop Protocol (RDP) access to EC2 instances in public and private subnets.*
 
-[.small]#* The template that deploys this Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+* In the private subnets:
+** In Availability Zone 1, an EC2 instance running Windows to serve as an offline root CA.
+** In Availability Zone 2, an EC2 instance running Windows to serve as a subordinate CA.
+* AWS Directory Service, which helps deploy an Active Directory Certificate Services (AD CS) environment.*
+* AWS Secrets Manager to store credentials.
+* AWS Systems Manager (formerly known as Amazon Simple Systems Manager, or SSM) to automate the CA deployment process and store the generated certificates.
+* AWS Identity and Access Management (IAM) to enable the EC2 instances and Systems Manager automation documents to perform their tasks.
+
+[.small]#* The template that deploys the Partner Solution into an existing VPC skips the components marked by asterisks and prompts you for your existing VPC configuration.#
+
+== The AD CS deployment process
+
+This Partner Solution deploys an AD CS environment, which includes an offline root CA and an online subordinate CA. The AWS Systems Manager automation document created by this Partner Solution automates the steps in the deployment. When the process is complete, the root CA has generated a domain root certificate and is powered off, and the subordinate CA is available to sign certificate requests for the domain.
