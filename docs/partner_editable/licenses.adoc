@@ -1,3 +1,0 @@
-// Include details about the license and how they can sign up. If no license is required, clarify that. 
-
-This Quick Start deploys EC2 instances running Microsoft Windows Server. The Windows Server licenses are provided by AWS.
