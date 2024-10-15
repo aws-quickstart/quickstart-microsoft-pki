@@ -120,8 +120,8 @@ If ($UseS3ForCRL -eq 'No' -and $DirectoryType -eq 'SelfManaged') {
     } Until ($CnameRecordPresent -or $Counter -eq 12)
 
     If ($Counter -ge 12) {
-        Write-Output 'CNAME record never created'
-        Exit 1
+        Write-Output 'CNAME record never created. Please create the CNAME manually'
+#        Exit 1
     }
 }
 
